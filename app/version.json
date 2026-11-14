@@ -1,0 +1,8 @@
+{
+  "name": "随身讲解库",
+  "name_en": "Pocket Presenter",
+  "version": "1.0.0",
+  "build": "2026-11-14",
+  "baseline": "PRODUCT_PLAN_V1.1",
+  "notes": "离线 PWA；视频与 HTML 课件由用户导入"
+}

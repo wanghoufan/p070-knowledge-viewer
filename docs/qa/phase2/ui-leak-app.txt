@@ -1,0 +1,10 @@
+UI-LEAK: 4 suspicious occurrence(s) — 人工语义核验后判定（见 docs/sop/app-ui-layers.md §5）
+
+  app/app.js:127  [dynamic-render] "esc(x.id)"
+      把内部 .id 直接渲染到界面；应改用可读名称
+  app/app.js:156  [dynamic-render] "esc(x.id)"
+      把内部 .id 直接渲染到界面；应改用可读名称
+  app/app.js:162  [dynamic-render] "esc(x.id)"
+      把内部 .id 直接渲染到界面；应改用可读名称
+  app/app.js:175  [dynamic-render] "esc(x.id)"
+      把内部 .id 直接渲染到界面；应改用可读名称

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>匹克球入门 · 演示课件</title>
+<style>
+  :root{--ink:#0c3760;--teal:#0a5860;--green:#0aa358;--paper:#fbfdfc;--muted:#5b7b73}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b2a22;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink)}
+  .deck{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 14px 8px;gap:10px}
+  .board{position:relative;width:min(100%,1050px);aspect-ratio:16/9;background:var(--paper);border-radius:16px;overflow:hidden;box-shadow:0 18px 48px #0004;display:flex;align-items:center;justify-content:center;text-align:center}
+  .board:after{content:"";position:absolute;left:-30px;right:-30px;bottom:-34px;height:86px;background:linear-gradient(30deg,#91e2a3,#e9fadc);transform:rotate(-4deg)}
+  .slide{position:relative;z-index:1;width:100%;padding:4% 6% 15%}
+  .eyebrow{font-size:clamp(10px,1.3vw,16px);letter-spacing:.12em;color:var(--green);font-weight:800;text-transform:uppercase}
+  h1,h2{margin:6px 0 4px;color:var(--ink);line-height:1.12;font-weight:850}
+  h1{font-size:clamp(26px,5vw,56px)} h2{font-size:clamp(20px,4vw,46px)}
+  .en{font-size:clamp(12px,1.9vw,24px);color:var(--teal);font-weight:750}
+  p{font-size:clamp(12px,1.8vw,22px);line-height:1.7;color:var(--muted);margin:12px auto 0;max-width:90%}
+  ul{text-align:left;margin:8px auto 0;max-width:86%;padding-left:1.1em;font-size:clamp(12px,1.7vw,22px);line-height:1.5}
+  .court{display:grid;grid-template-columns:1fr .55fr 1fr;gap:0;width:82%;margin:18px auto 0;border:4px solid var(--ink);border-radius:3px;overflow:hidden}
+  .court div{height:clamp(60px,16vw,150px);display:grid;place-items:center;font-size:clamp(10px,1.4vw,18px);font-weight:750;color:#fff}
+  .court div:nth-child(1),.court div:nth-child(3){background:#1e7fb3}
+  .court div:nth-child(2){background:#9bd43f;color:#17351d}
+  .balls{display:flex;gap:10px;justify-content:center;margin-top:16px}
+  .balls i{width:clamp(14px,2.4vw,26px);height:clamp(14px,2.4vw,26px);border-radius:50%;background:#eeef5e;box-shadow:inset -3px -3px 0 #c8cf2b}
+  footer{position:relative;z-index:2;width:min(100%,1050px);display:flex;align-items:center;gap:10px;font-size:clamp(11px,1.4vw,15px);color:#dff5e7}
+  .bar{flex:1;height:4px;border-radius:3px;background:#ffffff33;overflow:hidden}
+  .bar i{display:block;height:100%;width:25%;background:var(--green);transition:width .2s}
+  .ctrl{display:flex;gap:6px}
+  .ctrl button{width:44px;height:40px;border:1px solid #ffffff55;border-radius:10px;background:#ffffff18;color:#fff;font-size:20px}
+  .hint{position:absolute;right:16px;top:14px;z-index:2;font-size:clamp(10px,1.4vw,14px);color:#4a6b60;background:#fff;border:1px solid #dcebe0;border-radius:999px;padding:4px 10px}
+  .tag{display:inline-block;margin-top:12px;padding:5px 12px;border-radius:999px;background:#dff5e7;color:#067a43;font-size:clamp(11px,1.5vw,17px);font-weight:750}
+  @media(max-width:620px){.court{width:94%}.hint{display:none}}
+  @media(prefers-color-scheme:dark){body{background:#071a14}}
+</style>
+</head>
+<body>
+<div class="deck">
+  <div class="board">
+    <div class="slide" id="slide"></div>
+    <div class="hint">左右滑动 / 方向键翻页</div>
+  </div>
+  <footer><span id="counter">1 / 4</span><div class="bar"><i id="bar"></i></div><div class="ctrl"><button id="prev" aria-label="上一页">‹</button><button id="next" aria-label="下一页">›</button></div></footer>
+</div>
+</div>
+<script>
+(function(){
+  var slides=[
+    {eyebrow:'PICKLEBALL · 01',title:'认识球场',en:'Pickleball Court',body:'球场中间有球网，球网两侧是非截击区（厨房区）。先认识区域，再讲规则。',court:true},
+    {eyebrow:'PICKLEBALL · 02',title:'发球规则',en:'Serving Rules',body:'站在底线之后发球，通常沿对角线发向对面的发球区。以实际采用的比赛规则为准。',list:['站在底线之后','斜线发向对面发球区','先求稳定，再加速度']},
+    {eyebrow:'PICKLEBALL · 03',title:'厨房区是什么？',en:'Non-volley Zone',body:'中文常称非截击区，英文常称 Kitchen。这个区域内不能凌空截击。',list:['不能站在厨房区凌空截击','可以进入厨房区救球','脚踩线也算犯规']},
+    {eyebrow:'PICKLEBALL · 04',title:'一起练习',en:'Let’s Play!',body:'先热身，再练发球和网前小球。第一局以落点为主，别急着大力抽球。',tag:'适合零基础 · 两人对练'}
+  ];
+  var i=0, el=document.getElementById('slide'), counter=document.getElementById('counter'), bar=document.getElementById('bar');
+  function sendPage(){try{parent.postMessage({type:'p070:page',index:i+1,total:slides.length},'*')}catch(e){}}
+  function draw(){
+    var s=slides[i];
+    el.innerHTML='<div class="eyebrow">'+s.eyebrow+'</div><h2>'+s.title+'</h2><div class="en">'+s.en+'</div>'+
+      (s.court?'<div class="court"><div>球场</div><div>Kitchen<br>非截击区</div><div>球场</div></div>':'')+
+      (s.list?'<ul>'+s.list.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ul>':'<p>'+s.body+'</p>')+
+      (s.tag?'<div class="tag">'+s.tag+'</div>':'')+
+      (s.court?'<div class="balls"><i></i><i></i><i></i></div>':'');
+    counter.textContent=(i+1)+' / '+slides.length;
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    sendPage();
+  }
+  function go(n){i=Math.max(0,Math.min(slides.length-1,n));draw()}
+  document.getElementById('next').onclick=function(){go(i+1)};
+  document.getElementById('prev').onclick=function(){go(i-1)};
+  addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key===' ')go(i+1);if(e.key==='ArrowLeft')go(i-1)});
+  var sx=null;
+  addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
+  addEventListener('touchend',function(e){if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>48)go(i+(dx<0?1:-1));sx=null},{passive:true});
+  draw();
+})();
+</script>
+</body>
+</html>

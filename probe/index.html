@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>P070 T0 Probe</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f4f7f4;color:#10231c;margin:0;padding:18px;font-size:14px}
+  h1{font-size:18px;margin:0 0 10px}
+  #log{white-space:pre-wrap;background:#fff;border:1px solid #dbe6df;border-radius:10px;padding:12px;line-height:1.6}
+  .ok{color:#067a43}.bad{color:#b3261e}.warn{color:#8a5a12}
+</style>
+</head>
+<body>
+<h1>P070 T0 capability probe</h1>
+<div id="log">starting…</div>
+<script>
+const out = [];
+const log = (s, cls) => { out.push(s); const el=document.getElementById('log'); el.textContent=out.join('\n'); if(cls) el.className=cls; };
+const MB = 1024*1024;
+const SIZE = 64*MB;
+
+function report(obj){
+  return fetch('/report', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(obj)}).catch(()=>{});
+}
+async function timeout(p, ms, label){
+  return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout '+label)),ms))]);
+}
+function makeBlob(){
+  const chunk = new Uint8Array(4*MB);
+  for (let i=0;i<chunk.length;i+=4096) chunk[i]=i%251;
+  const arr=[]; for(let i=0;i<16;i++) arr.push(chunk);
+  return new Blob(arr,{type:'application/octet-stream'});
+}
+function idbOpen(){
+  return new Promise((res,rej)=>{ const r=indexedDB.open('p070-probe',1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains('blobs')) r.result.createObjectStore('blobs'); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+}
+function idbPut(db,key,val){ return new Promise((res,rej)=>{ const tx=db.transaction('blobs','readwrite'); tx.objectStore('blobs').put(val,key); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); }); }
+function idbGet(db,key){ return new Promise((res,rej)=>{ const tx=db.transaction('blobs','readonly'); const q=tx.objectStore('blobs').get(key); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
+function idbDel(db,key){ return new Promise((res)=>{ const tx=db.transaction('blobs','readwrite'); tx.objectStore('blobs').delete(key); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }
+
+async function testCache(){
+  const cache=await caches.open('p070-probe');
+  const blob=makeBlob();
+  const t=performance.now();
+  await cache.put('/probe-blob', new Response(blob));
+  const r=await cache.match('/probe-blob'); const b=await r.blob();
+  const ms=Math.round(performance.now()-t);
+  await cache.delete('/probe-blob');
+  return {ok:b.size===SIZE, bytes:b.size, ms};
+}
+async function testOPFS(){
+  if(!navigator.storage?.getDirectory) return {ok:false, unsupported:true};
+  const root=await navigator.storage.getDirectory();
+  const fh=await root.getFileHandle('probe.bin',{create:true});
+  const w=await fh.createWritable();
+  const chunk=new Uint8Array(4*MB); for(let i=0;i<chunk.length;i+=4096) chunk[i]=1;
+  const t=performance.now();
+  for(let i=0;i<16;i++) await w.write(chunk);
+  await w.close();
+  const f=await fh.getFile(); const ms=Math.round(performance.now()-t);
+  await root.removeEntry('probe.bin');
+  return {ok:f.size===SIZE, bytes:f.size, ms};
+}
+async function testIDB(){
+  const db=await idbOpen(); const blob=makeBlob(); const t=performance.now();
+  await idbPut(db,'big',blob); const got=await idbGet(db,'big'); const ms=Math.round(performance.now()-t);
+  await idbDel(db,'big'); db.close();
+  return {ok:got.size===SIZE, bytes:got.size, ms};
+}
+async function seedMedia(){
+  const cache=await caches.open('p070-probe-media');
+  const res=await fetch('/test.mp4',{cache:'no-store'});
+  const buf=await res.arrayBuffer();
+  await cache.put('/media/test.mp4', new Response(buf,{headers:{'content-type':'video/mp4'}}));
+  return buf.byteLength;
+}
+async function opfsVideoSeek(buf){const root=await navigator.storage.getDirectory();const fh=await root.getFileHandle('probe-video.mp4',{create:true});const w=await fh.createWritable();for(let off=0;off<buf.byteLength;off+=4*MB){await w.write(new Uint8Array(buf,off,Math.min(4*MB,buf.byteLength-off)))}await w.close();const f=await fh.getFile();const u=URL.createObjectURL(f);const r=await seekTest(u,'opfs-blob');URL.revokeObjectURL(u);await root.removeEntry('probe-video.mp4');return r}
+function seekTest(src, label){
+  return new Promise((resolve)=>{
+    const v=document.createElement('video'); v.muted=true; v.preload='metadata'; v.src=src;
+    const done=(o)=>{ try{v.pause()}catch{}; resolve(o); };
+    const to=setTimeout(()=>done({label, ok:false, err:'timeout'}),15000);
+    v.addEventListener('loadedmetadata', async ()=>{
+      const dur=v.duration;
+      const seek=(t)=>new Promise((r)=>{ const h=()=>{v.removeEventListener('seeked',h); setTimeout(()=>r(v.currentTime),100)}; v.addEventListener('seeked',h); v.currentTime=t; });
+      try{
+        const a=await seek(5); const b=await seek(Math.max(6,dur*0.8));
+        clearTimeout(to);
+        done({label, ok:Math.abs(a-5)<=1 && Math.abs(b-dur*0.8)<=1, dur, seek5:a, seek80:b, seekable:v.seekable.length?[v.seekable.start(0),v.seekable.end(0)]:[]});
+      }catch(e){ clearTimeout(to); done({label, ok:false, err:e.message}); }
+    });
+    v.addEventListener('error',()=>{ clearTimeout(to); done({label, ok:false, err:'media error '+v.error?.code}); });
+    v.load();
+  });
+}
+function iframeTest(){
+  return new Promise(async resolve=>{
+    const frame=document.createElement('iframe');
+    frame.sandbox='allow-scripts'; frame.setAttribute('allowfullscreen','');
+    frame.style.cssText='width:1px;height:1px;position:fixed;left:-10px;top:-10px;border:0';
+    const result={};
+    const timer=setTimeout(()=>{frame.remove();resolve({ok:false,err:'timeout',result});},6000);
+    window.addEventListener('message',function h(e){
+      if(!e.data||e.data.type!=='p070probe')return;
+      clearTimeout(timer); window.removeEventListener('message',h);
+      result.origin=e.data.origin; result.localStorage=e.data.localStorage; result.idb=e.data.idb; result.parent=e.data.parent; result.fullscreen=e.data.fullscreen;
+      frame.remove(); resolve({ok:true,result});
+    });
+    frame.srcdoc='<!doctype html><script>(function(){var r={type:"p070probe",origin:String(self.origin)};try{localStorage.getItem("x");r.localStorage="READ"}catch(e){r.localStorage=e.name}try{indexedDB.open("x");r.idb="OPEN"}catch(e){r.idb=e.name}try{parent.document.body;r.parent="READ"}catch(e){r.parent=e.name}r.fullscreen=!!document.fullscreenEnabled;parent.postMessage(r,"*")})()<\/script>';
+    document.body.appendChild(frame);
+  });
+}
+(async()=>{
+  const res={at:new Date().toISOString(), ua:navigator.userAgent, secure:isSecureContext, url:location.href, sw:!!navigator.serviceWorker, storage:!!navigator.storage, opfs:!!navigator.storage?.getDirectory, tests:{}};
+  try{
+    if('serviceWorker' in navigator){
+      const reg=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      await navigator.serviceWorker.ready;
+      res.swRegistered=true; res.swController=!!navigator.serviceWorker.controller;
+      if(!navigator.serviceWorker.controller && !sessionStorage.getItem('p070probe_reloaded')){
+        sessionStorage.setItem('p070probe_reloaded','1');
+        location.reload(); return;
+      }
+    }
+  }catch(e){ res.swError=e.message; }
+  try{ const est=await navigator.storage.estimate(); res.quota=est.quota; res.usage=est.usage;
+    res.persist=await navigator.storage.persist(); res.persisted=await navigator.storage.persisted();
+  }catch(e){ res.estimateError=e.message; }
+  log('storage tests…');
+  try{ res.tests.cache=await timeout(testCache(),60000,'cache'); }catch(e){ res.tests.cache={ok:false,err:e.message}; }
+  try{ res.tests.opfs=await timeout(testOPFS(),60000,'opfs'); }catch(e){ res.tests.opfs={ok:false,err:e.message}; }
+  try{ res.tests.idb=await timeout(testIDB(),60000,'idb'); }catch(e){ res.tests.idb={ok:false,err:e.message}; }
+  log('media seed…');
+  try{ res.mediaBytes=await timeout(seedMedia(),120000,'media'); }catch(e){ res.mediaError=e.message; }
+  if(res.mediaBytes){
+    try{const rr=await fetch('/media/test.mp4',{headers:{range:'bytes=0-99'}});res.rangeFetch={status:rr.status,len:(await rr.arrayBuffer()).byteLength,contentRange:rr.headers.get('content-range')}}catch(e){res.rangeFetch={err:e.message}}
+    log('sw range seek…');
+    res.tests.swSeek=await timeout(seekTest('/media/test.mp4','sw-range'),30000,'swseek').catch(e=>({ok:false,err:e.message}));
+    log('blob seek…');
+    try{ const b=await (await fetch('/test.mp4')).blob();
+      log('opfs video blob seek…');
+      try{ const ab=await b.arrayBuffer(); res.tests.opfsBlobSeek=await timeout(opfsVideoSeek(ab),60000,'opfsblob'); }catch(e){ res.tests.opfsBlobSeek={ok:false,err:e.message}; }
+      const u=URL.createObjectURL(b);
+      res.tests.blobSeek=await timeout(seekTest(u,'blob'),30000,'blobseek').catch(e=>({ok:false,err:e.message}));
+      URL.revokeObjectURL(u);
+    }catch(e){ res.tests.blobSeek={ok:false,err:e.message}; }
+  }
+  log('iframe sandbox…');
+  res.tests.iframe=await iframeTest();
+  res.done=true;
+  log('done');
+  await report(res);
+  document.getElementById('log').textContent=JSON.stringify(res,null,2);
+})();
+</script>
+</body>
+</html>

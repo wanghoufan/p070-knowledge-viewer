@@ -1,0 +1,217 @@
+{
+  "base": "http://127.0.0.1:8765/",
+  "at": "2026-11-14T08:09:02.848Z",
+  "results": [
+    {
+      "name": "启动页可见",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "资料库渲染 5 条资料",
+      "pass": true,
+      "detail": "cards=5"
+    },
+    {
+      "name": "搜索「双反弹」命中 1 条",
+      "pass": true,
+      "detail": "hits=1"
+    },
+    {
+      "name": "英文筛选只剩 2 条",
+      "pass": true,
+      "detail": "en=2"
+    },
+    {
+      "name": "标签「热身」筛选命中 1 条",
+      "pass": true,
+      "detail": "tag=热身 n=1"
+    },
+    {
+      "name": "方向 B 切换为单列清单布局",
+      "pass": true,
+      "detail": "{\"display\":\"flex\",\"dir\":\"B\",\"font\":\"\\\"Songti SC\\\", \\\"Noto Serif SC\\\", Georgia, \\\"Times New Roman\\\", serif\",\"cols\":\"104px 242px\"}"
+    },
+    {
+      "name": "方向 C 使用剧场式首图 + 衬线标题",
+      "pass": true,
+      "detail": "{\"dir\":\"C\",\"firstCover\":\"16 / 10\",\"serif\":\"\\\"Songti SC\\\", \\\"Noto Serif SC\\\", Georgia, \\\"Times New Roman\\\", serif\"}"
+    },
+    {
+      "name": "底栏选中态随页面同步",
+      "pass": true,
+      "detail": "true/false"
+    },
+    {
+      "name": "底栏滚到底仍固定不随内容移动",
+      "pass": true,
+      "detail": "{\"bottom\":844,\"vh\":844,\"top\":768}"
+    },
+    {
+      "name": "详情页打开",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "详情包含播放器",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "详情优先显示总结",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "正文≥19px、标题≥23px、辅助≥14px",
+      "pass": true,
+      "detail": "{\"body\":19,\"title\":26,\"meta\":14}"
+    },
+    {
+      "name": "自动缓存真实写入 IndexedDB（视频 + 讲解稿）",
+      "pass": true,
+      "detail": "{\"size\":1357869,\"slide\":9931}"
+    },
+    {
+      "name": "手动「保存到本机」写入第二条",
+      "pass": true,
+      "detail": "{\"size\":1357869,\"slide\":9931}"
+    },
+    {
+      "name": "视频可 seek 并继续播放",
+      "pass": true,
+      "detail": "{\"t\":6.862893,\"duration\":24,\"paused\":true,\"posSaved\":6.75619}"
+    },
+    {
+      "name": "原文稿可展开",
+      "pass": true,
+      "detail": "chars=206"
+    },
+    {
+      "name": "展开文稿不重启视频",
+      "pass": true,
+      "detail": "6.862893->6.862916"
+    },
+    {
+      "name": "讲解稿在 sandbox iframe 打开（无 allow-same-origin）",
+      "pass": true,
+      "detail": "{\"hidden\":true,\"src\":\"blob:http://127.0.0.1:8765/37ab1e03-325a-41a4-afe5-dd1b208d0cf8\",\"sandbox\":\"allow-scripts\"}"
+    },
+    {
+      "name": "进入讲解时暂停视频",
+      "pass": true,
+      "detail": "paused=true"
+    },
+    {
+      "name": "外层下一页真实翻页（页码变化）",
+      "pass": true,
+      "detail": "1 / 4 -> 2 / 4"
+    },
+    {
+      "name": "讲解模式可退出并返回详情",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "返回键先退出讲解",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "分享清单含 1 条",
+      "pass": true,
+      "detail": "rows=1"
+    },
+    {
+      "name": "复制清单得到标题 + 原视频网址",
+      "pass": true,
+      "detail": "匹克球热身：上场前 8 分钟\nhttps://www.bilibili.com/video/BV1xx411c7mD"
+    },
+    {
+      "name": "品牌候选含三方向四项",
+      "pass": true,
+      "detail": "品牌资产候选\nA · 随身讲解库 / 随身讲义\n中文名：随身讲解库 / 随身讲义"
+    },
+    {
+      "name": "深色主题生效",
+      "pass": true,
+      "detail": "DARK"
+    },
+    {
+      "name": "讲解页跟随深色主题",
+      "pass": true,
+      "detail": "rgb(21, 24, 20)"
+    },
+    {
+      "name": "英文切换生效",
+      "pass": true,
+      "detail": "Pocket Brief"
+    },
+    {
+      "name": "刷新后主题/语言/方向持久化",
+      "pass": true,
+      "detail": "{\"theme\":\"DARK\",\"lang\":\"\\\"zh\\\"\",\"dir\":\"\\\"A\\\"\"}"
+    },
+    {
+      "name": "离线状态条可见且有文字说明（模拟）",
+      "pass": true,
+      "detail": "{\"hidden\":false,\"text\":\"当前离线：已缓存的视频和讲解稿仍可打开。\"}"
+    },
+    {
+      "name": "产品界面无内部标识（AC-36）",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "无横向溢出（390px 视口）",
+      "pass": true,
+      "detail": "overflow=0"
+    },
+    {
+      "name": "任何可见文本不小于 14px",
+      "pass": true,
+      "detail": "min>=14"
+    },
+    {
+      "name": "可交互目标不小于 44px（当前页）",
+      "pass": true,
+      "detail": "all>=44"
+    },
+    {
+      "name": "导入 manifest 新增 1 条",
+      "pass": true,
+      "detail": "cards=6"
+    },
+    {
+      "name": "重复 id 弹出处理选项",
+      "pass": true,
+      "detail": "资料已存在\n\n有 1 条资料的 id 与现有资料重复。你想怎么处理？\n\n保留原素"
+    },
+    {
+      "name": "跳过重复后条数不翻倍",
+      "pass": true,
+      "detail": "cards=6"
+    },
+    {
+      "name": "320px + 英文长文案无横向溢出",
+      "pass": true,
+      "detail": "overflow=0"
+    },
+    {
+      "name": "320px 英文底栏标签不截断",
+      "pass": true,
+      "detail": "[{\"t\":\"Library\",\"sw\":49,\"cw\":49},{\"t\":\"Share list\",\"sw\":60,\"cw\":60}]"
+    },
+    {
+      "name": "SYSTEM 跟随系统外观变化",
+      "pass": true,
+      "detail": "DARK/LIGHT"
+    },
+    {
+      "name": "无 JS 运行时错误",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "consoleErrors": []
+}

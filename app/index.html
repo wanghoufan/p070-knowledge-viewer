@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f9f7">
+<meta name="description" content="随身讲解库 Pocket Presenter：离线播放视频、查看总结与 HTML 讲解课件，并分享原视频链接。">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<title>随身讲解库 · Pocket Presenter</title>
+<script>
+/* Apply the saved theme before CSS paints, so there is no white flash. */
+(function(){
+  try{
+    var mode = localStorage.getItem('p070_theme') || 'light';
+    var dark = mode === 'dark' || (mode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  }catch(_){ document.documentElement.dataset.theme = 'light'; }
+})();
+</script>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app" class="app" aria-label="随身讲解库"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="portal"></div>
+<div id="updatebar" class="updatebar" hidden>
+  <span id="updatetext"></span>
+  <button id="updatebtn" type="button"></button>
+  <button id="updatelater" class="ghost" type="button"></button>
+</div>
+<input type="file" id="video-file" accept="video/mp4,video/webm,video/quicktime" hidden>
+<input type="file" id="html-file" accept=".html,.htm,text/html" hidden>
+<input type="file" id="json-file" accept=".json,application/json" hidden>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

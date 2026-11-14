@@ -1,0 +1,36 @@
+<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>seek probe</title>
+<body style="font:14px/1.6 -apple-system,sans-serif;padding:16px"><div id="log">running…</div>
+<script>
+const log=x=>{document.getElementById('log').textContent=JSON.stringify(x,null,2)};
+async function main(){
+ const res={ua:navigator.userAgent,secure:isSecureContext,opfs:!!navigator.storage?.getDirectory,tests:{}};
+ const buf=await (await fetch('/test16.mp4',{cache:'no-store'})).arrayBuffer();
+ res.bytes=buf.byteLength;
+ try{
+  const root=await navigator.storage.getDirectory();
+  const fh=await root.getFileHandle('seek.mp4',{create:true});
+  const w=await fh.createWritable();
+  for(let o=0;o<buf.byteLength;o+=1024*1024) await w.write(new Uint8Array(buf,o,Math.min(1024*1024,buf.byteLength-o)));
+  await w.close();
+  const f=await fh.getFile(); res.opfsSize=f.size;
+  const u=URL.createObjectURL(f); res.tests.opfsBlob=await seek(u);
+  URL.revokeObjectURL(u); await root.removeEntry('seek.mp4');
+ }catch(e){res.tests.opfsBlob={ok:false,err:e.message}}
+ try{
+  const db=await new Promise((r,j)=>{const q=indexedDB.open('p070-seek',1);q.onupgradeneeded=()=>q.result.createObjectStore('b');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});
+  await new Promise((r,j)=>{const tx=db.transaction('b','readwrite');tx.objectStore('b').put(new Blob([buf]),'v');tx.oncomplete=r;tx.onerror=()=>j(tx.error)});
+  const b=await new Promise((r,j)=>{const tx=db.transaction('b');const q=tx.objectStore('b').get('v');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});
+  const u=URL.createObjectURL(b); res.tests.idbBlob=await seek(u); URL.revokeObjectURL(u); db.close();
+ }catch(e){res.tests.idbBlob={ok:false,err:e.message}}
+ res.done=true; log(res);
+ await fetch('/report?kind=seek',{method:'POST',body:JSON.stringify(res)});
+}
+function seek(src){return new Promise(resolve=>{
+ const v=document.createElement('video');v.muted=true;v.preload='metadata';v.src=src;v.style.width='1px';
+ const done=o=>{try{v.pause()}catch{};v.remove();resolve(o)};
+ const to=setTimeout(()=>done({ok:false,err:'timeout'}),20000);
+ v.onloadedmetadata=async()=>{const d=v.duration;const s=t=>new Promise(r=>{const h=()=>{v.removeEventListener('seeked',h);setTimeout(()=>r(v.currentTime),100)};v.addEventListener('seeked',h);v.currentTime=t});const a=await s(5),b=await s(d*0.8);clearTimeout(to);done({ok:Math.abs(a-5)<1&&Math.abs(b-d*0.8)<1,dur:d,a,b})};
+ v.onerror=()=>{clearTimeout(to);done({ok:false,err:'media '+v.error?.code})};v.load();document.body.appendChild(v);
+})}
+main().catch(e=>log({fatal:e.message}));
+</script>

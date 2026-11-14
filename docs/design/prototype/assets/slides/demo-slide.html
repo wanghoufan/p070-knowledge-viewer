@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>匹克球热身 · 四页讲解示例</title>
+<style>
+  :root{
+    --paper:#fbf7ef; --ink:#1f2a24; --muted:#5e6b62; --line:#dcd3c4;
+    --accent:#c25b2e; --accent-soft:#f3e2d7; --green:#2f6b4f; --green-soft:#e2eee6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--paper);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  .deck{position:relative;height:100%;width:100%;overflow:hidden}
+  .slide{position:absolute;inset:0;padding:clamp(20px,4.5vw,48px) clamp(22px,5vw,56px) clamp(56px,8vw,72px);
+    display:flex;flex-direction:column;justify-content:center;gap:clamp(10px,1.6vh,18px);
+    opacity:0;transform:translateX(28px);pointer-events:none;transition:opacity .32s ease,transform .32s ease}
+  .slide.active{opacity:1;transform:none;pointer-events:auto}
+  .slide.leaving{transform:translateX(-28px)}
+  .eyebrow{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  h1{font-size:clamp(30px,6.2vw,54px);line-height:1.12;margin:0;letter-spacing:-.01em}
+  h2{font-size:clamp(24px,4.6vw,40px);line-height:1.16;margin:0}
+  p{font-size:clamp(15px,2.1vw,19px);line-height:1.65;color:var(--muted);margin:0;max-width:46em}
+  .tag{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);
+    border-radius:999px;padding:5px 12px;font-size:13px;font-weight:600;width:max-content}
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(16px,3vw,36px);align-items:center;min-height:0}
+  .grid.flip{grid-template-columns:.95fr 1.05fr}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:clamp(14px,2.2vw,22px);
+    display:flex;flex-direction:column;gap:10px;min-width:0}
+  .steps{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+  .steps li{display:flex;gap:12px;align-items:flex-start;font-size:clamp(14px,1.8vw,17px);line-height:1.5}
+  .num{flex:0 0 27px;height:27px;border-radius:50%;background:var(--green-soft);color:var(--green);
+    display:grid;place-items:center;font-weight:700;font-size:13px}
+  .art{width:100%;height:100%;min-height:150px;display:grid;place-items:center;
+    background:linear-gradient(145deg,#e7f0e9,#f6f1e2);border-radius:16px;border:1px solid var(--line);overflow:hidden}
+  .art svg{width:100%;height:auto;display:block}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+  .card b{display:block;font-size:15px;margin-bottom:4px}
+  .card span{font-size:13.5px;color:var(--muted);line-height:1.5}
+  .do{color:var(--green);font-weight:700}.dont{color:var(--accent);font-weight:700}
+  footer{position:absolute;left:clamp(22px,5vw,56px);right:clamp(22px,5vw,56px);
+    bottom:clamp(16px,3vh,26px);display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--muted)}
+  .bar{flex:1;height:3px;background:#e7dfd1;border-radius:2px;overflow:hidden}
+  .bar i{display:block;height:100%;width:25%;background:var(--accent);transition:width .32s ease}
+  .ctrl{display:flex;gap:8px}
+  .ctrl button{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;
+    color:var(--ink);font-size:17px;cursor:pointer}
+  .ctrl button:active{transform:scale(.96)}
+  .hint{position:absolute;top:clamp(14px,2.4vh,22px);right:clamp(18px,4vw,32px);font-size:12px;color:var(--muted);
+    background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 10px}
+  @media (max-width:720px){
+    .grid,.grid.flip{grid-template-columns:1fr}
+    .art{display:none}
+    .two{grid-template-columns:1fr}
+    .hint{display:none}
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--paper:#171a17;--ink:#f2eee4;--muted:#b9b3a5;--line:#3a3f39;--accent:#e58a5e;
+      --accent-soft:#3b2a21;--green:#9ed0b1;--green-soft:#24362c}
+    .panel,.card,.ctrl button{background:#212620}
+    .art{background:linear-gradient(145deg,#22302a,#2c2a22)}
+    .hint{background:#212620}
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck" aria-live="polite">
+
+  <section class="slide active" data-i="0">
+    <span class="eyebrow">Pickleball · 01 Warm-up</span>
+    <h1>上场前 8 分钟<br>把身体叫醒</h1>
+    <p>目标不是出汗，是把肩、髋、踝逐个打开，让第一拍就敢发力。下面四页按顺序讲：先升温，再激活，最后做上场检查。</p>
+    <span class="tag">适合零基础 · 两人对练前</span>
+  </section>
+
+  <section class="slide" data-i="1">
+    <div class="grid">
+      <div>
+        <span class="eyebrow">Step 1 · 3 分钟</span>
+        <h2>先让心率上来</h2>
+        <ul class="steps">
+          <li><span class="num">1</span><div>绕场快走两圈，再慢跑一圈，能说短句但不喘。</div></li>
+          <li><span class="num">2</span><div>原地开合跳 30 秒 × 2 组，落地轻，膝盖对脚尖。</div></li>
+          <li><span class="num">3</span><div>肩部前后绕环各 12 次，幅度由小到大。</div></li>
+        </ul>
+      </div>
+      <div class="art" aria-label="球场示意图">
+        <svg viewBox="0 0 320 220" role="img" aria-label="匹克球场">
+          <rect x="18" y="24" width="284" height="172" rx="10" fill="#2f6b4f" opacity=".12"/>
+          <rect x="42" y="42" width="236" height="136" rx="4" fill="none" stroke="#2f6b4f" stroke-width="3"/>
+          <line x1="160" y1="42" x2="160" y2="178" stroke="#2f6b4f" stroke-width="2"/>
+          <line x1="74" y1="42" x2="74" y2="178" stroke="#2f6b4f" stroke-width="1.5" stroke-dasharray="7 6"/>
+          <line x1="246" y1="42" x2="246" y2="178" stroke="#2f6b4f" stroke-width="1.5" stroke-dasharray="7 6"/>
+          <circle cx="160" cy="110" r="5" fill="#c25b2e"/>
+          <path d="M196 84c10-14 26-14 34-4" fill="none" stroke="#c25b2e" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="234" cy="74" r="7" fill="#f2c94c" stroke="#b8860b" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-i="2">
+    <div class="grid flip">
+      <div class="art" aria-label="动态拉伸示意">
+        <svg viewBox="0 0 320 220" role="img" aria-label="弓步与转体">
+          <rect x="0" y="0" width="320" height="220" fill="none"/>
+          <circle cx="96" cy="58" r="14" fill="#2f6b4f"/>
+          <path d="M96 74 L96 128 M96 92 L66 112 M96 92 L128 110 M96 128 L70 176 M96 128 L126 174"
+                stroke="#2f6b4f" stroke-width="6" stroke-linecap="round" fill="none"/>
+          <path d="M60 186 H140" stroke="#c25b2e" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="236" cy="62" r="12" fill="#c25b2e" opacity=".85"/>
+          <path d="M236 78 V132 M236 92 L206 74 M236 92 L268 112 M236 132 L210 178 M236 132 L264 178"
+                stroke="#c25b2e" stroke-width="5" stroke-linecap="round" fill="none" opacity=".85"/>
+        </svg>
+      </div>
+      <div>
+        <span class="eyebrow">Step 2 · 3 分钟</span>
+        <h2>把常用动作做一遍</h2>
+        <ul class="steps">
+          <li><span class="num">1</span><div>弓步转体：左右各 8 次，前膝不超过脚尖。</div></li>
+          <li><span class="num">2</span><div>侧向滑步：左右各 10 米，重心压低，别交叉脚。</div></li>
+          <li><span class="num">3</span><div>空挥截击 20 次，手腕固定，用肩带动。</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-i="3">
+    <span class="eyebrow">Step 3 · 上场前 2 分钟</span>
+    <h2>四件事，少一件都别开球</h2>
+    <div class="two">
+      <div class="card"><b>球拍手感</b><span>用非持拍手敲拍面，确认握把不滑、拍面无裂。</span></div>
+      <div class="card"><b>场地边线</b><span>看一眼厨房区线，确认没有水渍和松动物。</span></div>
+      <div class="card"><b>鞋带与脚踝</b><span>鞋带双结，踝关节活动度两侧一致。</span></div>
+      <div class="card"><b>呼吸节奏</b><span>三次深呼吸，第一拍只求过网，不抢发力。</span></div>
+    </div>
+    <p><span class="do">要做：</span>先慢后快，第一局以落点为主。<span class="dont">不要做：</span>没热身就连续大力抽球。</p>
+  </section>
+
+  <div class="hint">左右滑动 / 方向键翻页</div>
+  <footer>
+    <span id="counter">1 / 4</span>
+    <div class="bar"><i id="progress"></i></div>
+    <div class="ctrl">
+      <button id="prev" aria-label="上一页">‹</button>
+      <button id="next" aria-label="下一页">›</button>
+    </div>
+  </footer>
+</div>
+<script>
+(function(){
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var i = 0, counter = document.getElementById('counter'), progress = document.getElementById('progress');
+  function sendPage(){ try { parent.postMessage({ type:'p070:page', index:i+1, total:slides.length }, '*'); } catch(e){} }
+  function show(n){
+    n = Math.max(0, Math.min(slides.length - 1, n));
+    if (n === i) return;
+    slides[i].classList.remove('active');
+    slides[i].classList.add('leaving');
+    var old = slides[i];
+    setTimeout(function(){ old.classList.remove('leaving'); }, 340);
+    i = n;
+    slides[i].classList.add('active');
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    progress.style.width = ((i + 1) / slides.length * 100) + '%';
+    sendPage();
+  }
+  sendPage();
+  document.getElementById('next').onclick = function(){ show(i + 1); };
+  document.getElementById('prev').onclick = function(){ show(i - 1); };
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+  });
+  var sx = 0, sy = 0;
+  document.addEventListener('touchstart', function(e){
+    sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', function(e){
+    var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy) * 1.4) show(i + (dx < 0 ? 1 : -1));
+  }, {passive:true});
+  document.addEventListener('click', function(e){
+    if (e.target.closest('button')) return;
+    show(i + (e.clientX > window.innerWidth * 0.62 ? 1 : (e.clientX < window.innerWidth * 0.38 ? -1 : 0)));
+  });
+})();
+</script>
+</body>
+</html>
