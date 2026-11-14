@@ -4,6 +4,11 @@
 
 > 电脑负责内容生产与长期保存；手机只负责播放已缓存视频、查看文稿/术语、打开 HTML 课件。视频下载、转写、AI 总结、PPT 制作都不在本项目内。
 
+## 仓库
+
+- GitHub：<https://github.com/wanghoufan/p070-knowledge-viewer>（public）
+- 默认分支：`main`
+
 ## 当前状态
 
 - 版本：`1.0.0`
@@ -61,7 +66,7 @@ TEST_VIDEO=$PWD/probe/test-500.mp4 PW_MODULE=<playwright目录> \
 
 - 手机端大文件导入/处理不作为本项目验收项；大文件处理与保存在电脑端。手机端需补“已缓存视频播放/seek”的真机录屏。
 - OPPO 自带浏览器未测；目前只有 Redmi/MIUI 真机证据。
-- 无大陆 5G 可直连的 HTTPS 正式地址；未 commit 前不构成发布。
+- 无大陆 5G 可直连的 HTTPS 正式地址；已 commit/push，但未部署，不构成正式发布。
 - 演示视频/课件为自制样本，不是真实课程内容。
 - 浏览器可能清理站点存储；应用会提示本地副本丢失，原片请保留在电脑。
 
