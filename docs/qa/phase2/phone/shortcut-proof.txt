@@ -1,0 +1,26 @@
+P070 MIUI PWA shortcut evidence (2026-11-14)
+Source: adb -s <Redmi Note 12T Pro> shell dumpsys shortcut
+Sanitized excerpt:
+
+Package: com.android.browser  User: 0
+  Pinned: 随身讲解库
+  ...
+  ShortcutInfo {id=随身讲解库, ...}
+    shortLabel=随身讲解库
+    intents=[Intent { act=miui.browser.webapps.pwa.ACTION_OPEN_PWA
+      cmp=com.android.browser/.webapps.pwa.PWADispatcherActivity }
+      PersistableBundle[{JSON_VALUE={
+        "name":"随身讲解库",
+        "shortName":"随身讲解库",
+        "scope":"http://localhost:8767/",
+        "startUrl":"http://localhost:8767/",
+        "displayMode":3,
+        "themeColor":4294441463,
+        "iconUrl":"http://localhost:8767/icons/icon-192.png"
+      }}]]
+
+Interpretation:
+- displayMode=3 = standalone.
+- The shortcut opens com.android.browser/.webapps.pwa.PWAActivity (observed as topResumedActivity).
+- This is real-device evidence for the MIUI "add to home screen" path.
+- It does NOT prove OPPO, 5G HTTPS, or large-file playback.

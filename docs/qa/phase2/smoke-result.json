@@ -1,0 +1,167 @@
+{
+  "base": "http://127.0.0.1:8766/",
+  "at": "2026-11-14T10:55:55.935Z",
+  "results": [
+    {
+      "name": "PWA 安全上下文与 Service Worker 接管",
+      "pass": true,
+      "detail": "{\"secure\":true,\"controller\":true,\"regs\":true}"
+    },
+    {
+      "name": "首个版本 6 条资料",
+      "pass": true,
+      "detail": "items=6"
+    },
+    {
+      "name": "品牌名正确",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "四 Tab 导航",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "390px 无横向溢出",
+      "pass": true,
+      "detail": "overflow=0"
+    },
+    {
+      "name": "可见文字 ≥14px",
+      "pass": true,
+      "detail": "min>=14"
+    },
+    {
+      "name": "搜索命中",
+      "pass": true,
+      "detail": "hits=2"
+    },
+    {
+      "name": "英文筛选",
+      "pass": true,
+      "detail": "en=3"
+    },
+    {
+      "name": "标签筛选",
+      "pass": true,
+      "detail": "tag=1"
+    },
+    {
+      "name": "已缓存 Tab 选中态同步",
+      "pass": true,
+      "detail": "navbutton active"
+    },
+    {
+      "name": "从详情返回恢复滚动位置",
+      "pass": true,
+      "detail": "420->420"
+    },
+    {
+      "name": "详情首屏含标题/总结/播放器/术语",
+      "pass": true,
+      "detail": "{\"title\":\"匹克球基础规则\",\"summary\":78,\"video\":true,\"terms\":4,\"nav\":true}"
+    },
+    {
+      "name": "展开文稿不重启视频",
+      "pass": true,
+      "detail": "0.264948->0.264948"
+    },
+    {
+      "name": "导入视频后标记已缓存",
+      "pass": true,
+      "detail": "✓ 已缓存，可本地播放。导入视频后才可能真正离线播放。"
+    },
+    {
+      "name": "媒体记录真实写入并带字节数",
+      "pass": true,
+      "detail": "{\"id\":\"pk1\",\"video\":true,\"invalidVideo\":false,\"mode\":\"opfs\",\"opfsName\":\"pk1.mp4\",\"bytes\":30174,\"name\":\"demo.mp4\",\"verifiedAt\":1794653741377,\"slides\":false}"
+    },
+    {
+      "name": "讲解稿 sandbox 打开且翻页",
+      "pass": true,
+      "detail": "1 / 4 -> 2 / 4"
+    },
+    {
+      "name": "iframe 无 allow-same-origin",
+      "pass": true,
+      "detail": "allow-scripts"
+    },
+    {
+      "name": "导入单文件 HTML 并真实写入",
+      "pass": true,
+      "detail": "{\"id\":\"pk2\",\"slides\":true,\"slidesBytes\":6152,\"slidesName\":\"demo-slide.html\",\"slidesRemote\":false,\"slidesRefs\":[]}"
+    },
+    {
+      "name": "导入课件可打开且 iframe 隔离",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "原视频链接保存",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "分享链接复制且不含本机地址",
+      "pass": true,
+      "detail": "Pickleball · Videos to Watch\n\n1. Pickleball Basic Rules\nhttps://www.bilibili.com"
+    },
+    {
+      "name": "已缓存页显示缓存条目",
+      "pass": true,
+      "detail": "rows=2"
+    },
+    {
+      "name": "深色主题生效",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "英文界面生效",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "刷新后主题/语言保留",
+      "pass": true,
+      "detail": "{\"theme\":\"light\",\"lang\":\"\\\"en\\\"\"}"
+    },
+    {
+      "name": "重复 id 弹出四选项",
+      "pass": true,
+      "detail": "资料已存在\n\n有 1 条资料的 id 与现有资料重复，请选择处理方式。\n\n保留原"
+    },
+    {
+      "name": "导入新增 1 条、跳过重复",
+      "pass": true,
+      "detail": "items=7"
+    },
+    {
+      "name": "分享清单含两条",
+      "pass": true,
+      "detail": "rows=2"
+    },
+    {
+      "name": "断网刷新仍可从壳缓存启动",
+      "pass": true,
+      "detail": "items=7"
+    },
+    {
+      "name": "离线状态可播放并 seek 已缓存视频",
+      "pass": true,
+      "detail": "{\"dur\":12,\"a\":2,\"b\":9.6,\"src\":\"blob:http://127.0.0.1:8766/90adaed6-ce76-4184-a7a7-d8f3925f4cea\"}"
+    },
+    {
+      "name": "清理全部缓存需确认且清空列表",
+      "pass": true,
+      "detail": "2->0"
+    },
+    {
+      "name": "无 JS 运行时错误",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "errors": []
+}

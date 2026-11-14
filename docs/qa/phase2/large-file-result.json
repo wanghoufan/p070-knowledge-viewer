@@ -1,0 +1,27 @@
+{
+  "file": "probe/test-500.mp4",
+  "size": 510520147,
+  "at": "2026-11-14T10:34:07.992Z",
+  "checks": [
+    {
+      "name": "大视频保存后标记已缓存",
+      "pass": true,
+      "detail": "✓ 已缓存，可本地播放。导入视频后才可能真正离线播放。 / 1177ms"
+    },
+    {
+      "name": "媒体记录字节一致",
+      "pass": true,
+      "detail": "{\"id\":\"pk2\",\"video\":true,\"invalidVideo\":false,\"mode\":\"opfs\",\"opfsName\":\"pk2.mp4\",\"bytes\":510520147,\"name\":\"test-500.mp4\",\"verifiedAt\":1794652450341,\"slides\":false}"
+    },
+    {
+      "name": "大视频 5s 与 80% seek 读回",
+      "pass": true,
+      "detail": "{\"dur\":340,\"a\":5,\"b\":272,\"seekable\":[0,340]}"
+    },
+    {
+      "name": "无 JS 运行时错误",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}
