@@ -70,3 +70,9 @@
 /docs/qa/phase1-prototype/
 .DS_Store
 /scripts/
+
+# Local working data (device drivers, media staging, memory)
+/.workbuddy/
+
+# Downloaded YouTube sources (large media, not distributed)
+/youtube/

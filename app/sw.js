@@ -1,6 +1,6 @@
 /* P070 app-shell service worker.
    Shell cache is versioned; imported media never goes through Cache Storage. */
-const VERSION = '1.0.1';
+const VERSION = '1.2.3';
 const SHELL_CACHE = `p070-shell-v${VERSION}`;
 const SHELL_ASSETS = [
   './',
