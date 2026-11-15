@@ -70,3 +70,15 @@
 /docs/qa/phase1-prototype/
 .DS_Store
 /scripts/
+
+# P070 Android build artifacts and local test material
+/node_modules/
+/www/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/local.properties
+/android/keystore.properties
+/*.jks
+/*.keystore
+/.local/

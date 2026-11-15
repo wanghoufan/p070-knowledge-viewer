@@ -1,6 +1,12 @@
 /* P070 local storage layer.
-   Metadata: IndexedDB. Large video: OPFS first, IndexedDB Blob fallback.
+   Metadata: IndexedDB (survives app restarts and same-signature upgrades).
+   Media:
+     - Android APK: native streaming copy into the app's private persistent files
+       directory (SAF picker -> plugin -> filesDir/p070). Nothing is buffered in JS.
+     - Desktop browser (development only): OPFS first, IndexedDB Blob fallback.
    No network, no external service. */
+
+import { platform, isNative } from './platform.js';
 
 const DB_NAME = 'p070';
 const DB_VERSION = 1;
@@ -52,6 +58,8 @@ function request(req) {
   });
 }
 
+const noNative = () => { throw new Error('native import path is used on Android'); };
+
 export const db = {
   async allItems() {
     const dbh = await openDB();
@@ -87,6 +95,10 @@ export const db = {
   },
 
   async estimate() {
+    if (isNative) {
+      const s = await platform.storage();
+      return { quota: s.freeBytes || 0, usage: s.appBytes || 0, usageDetails: null };
+    }
     try {
       const e = await navigator.storage.estimate();
       return { quota: e.quota || 0, usage: e.usage || 0, usageDetails: e.usageDetails || null };
@@ -103,7 +115,9 @@ export const db = {
     return root.getDirectoryHandle(OPFS_DIR, { create: true });
   },
 
+  /* Browser-only: on Android the native plugin streams the picked file instead. */
   async saveVideo(id, file, onProgress) {
+    if (isNative) return noNative();
     if (!file) throw new Error('没有选择视频文件');
     if (!/^video\//.test(file.type) && !/\.(mp4|m4v|webm|mov)$/i.test(file.name)) {
       throw new Error('请选择 MP4 / WebM / MOV 视频文件');
@@ -167,6 +181,7 @@ export const db = {
 
   async getVideoURL(id, rec) {
     if (!rec || !rec.video) return null;
+    if (isNative) return platform.mediaUrl(id);
     if (rec.mode === 'opfs' && rec.opfsName) {
       const dir = await this.getDirectory();
       if (!dir) return null;
@@ -182,6 +197,13 @@ export const db = {
 
   async checkVideo(id, rec) {
     if (!rec || !rec.video) return false;
+    if (isNative) {
+      try {
+        const info = await platform.mediaInfo(id);
+        if (!info || !info.video || !info.video.exists) return false;
+        return !rec.bytes || info.video.bytes === rec.bytes;
+      } catch { return false; }
+    }
     try {
       if (rec.mode === 'opfs' && rec.opfsName) {
         const dir = await this.getDirectory();
@@ -196,6 +218,10 @@ export const db = {
   },
 
   async removeVideo(id) {
+    if (isNative) {
+      await platform.deleteMedia(id, 'video');
+      return;
+    }
     try {
       const dir = await this.getDirectory();
       if (dir) {
@@ -208,17 +234,32 @@ export const db = {
 
   async saveSlides(id, text, mime) {
     const bytes = new Blob([text]).size;
+    // On Android the deck already lives in private storage; only its size is recorded.
+    if (isNative) return { bytes, mime: mime || 'text/html' };
     await tx('blobs', 'readwrite', s => s.put({ key: `${id}|slides`, value: text }));
     return { bytes, mime: mime || 'text/html' };
   },
 
   async getSlides(id) {
+    if (isNative) return null;
     const dbh = await openDB();
     const row = await request(dbh.transaction('blobs', 'readonly').objectStore('blobs').get(`${id}|slides`));
     return row && typeof row.value === 'string' ? row.value : null;
   },
 
+  async hasSlides(id) {
+    if (isNative) {
+      try { const info = await platform.mediaInfo(id); return !!(info && info.slides && info.slides.exists); }
+      catch { return false; }
+    }
+    return (await this.getSlides(id)) != null;
+  },
+
   async removeSlides(id) {
+    if (isNative) {
+      await platform.deleteMedia(id, 'slides');
+      return;
+    }
     await tx('blobs', 'readwrite', s => s.delete(`${id}|slides`)).catch(() => {});
   },
 

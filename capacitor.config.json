@@ -1,0 +1,14 @@
+{
+  "appId": "com.p070.pocketpresenter",
+  "appName": "随身讲解库",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#f7f9f7",
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -1,8 +1,11 @@
 import { db, QuotaError } from './db.js';
 import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
+import { platform, isNative } from './platform.js';
 
 const VERSION = '1.0.0';
+/* Real build facts read from the installed APK (never a dev hash on screen). */
+let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -63,6 +66,7 @@ function applyTheme() {
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#101713' : '#f7f9f7');
+  if (isNative) platform.setSystemBars(dark).catch(() => {});
 }
 function setTheme(mode) {
   state.theme = mode;
@@ -178,7 +182,7 @@ function share() {
 function settings() {
   const dark = document.documentElement.dataset.theme === 'dark';
   const cached = all().filter(x => mediaOf(x.id).video || mediaOf(x.id).slides).length;
-  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:VERSION}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
+  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:ENV.version || VERSION}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
 }
 
 function render(keepScroll = true) {
@@ -208,6 +212,8 @@ function goTab(tab) {
   state.expanded = false;
   state.tab = tab;
   render();
+  // On Android, re-read the real files on disk before showing cache facts.
+  if (tab === 'offline' && isNative) refreshNativeMedia().then(() => render());
 }
 function openItem(id) {
   if (!find(id)) return;
@@ -294,6 +300,166 @@ async function loadVideo(id) {
     const st = $('#video-status');
     if (st) st.textContent = T('lostVideo') + '。' + T('videoHint');
   });
+}
+
+/* ---------- Android: SAF import into private persistent storage ---------- */
+
+/* Android back: deck/detail -> list -> tab home -> (double press) exit. */
+function handleBack() {
+  if ($('#slide-modal')) { closeSlides(); return true; }
+  if ($('#dialog-mask')) {
+    const mask = $('#dialog-mask');
+    mask.remove();
+    return true;
+  }
+  if ($('#sheet-overlay')) { closeOverlay(); return true; }
+  if (state.detail) { backToList(); return true; }
+  if (state.tab !== 'home') { goTab('home'); return true; }
+  return false;
+}
+
+function startVideoImport() {
+  if (!state.detail) return;
+  if (isNative) importVideoNative();
+  else $('#video-file').click();
+}
+
+function startSlidesImport() {
+  if (!state.detail) return;
+  if (isNative) importSlidesNative();
+  else $('#html-file').click();
+}
+
+function startManifestImport() {
+  if (!isNative) { $('#json-file').click(); return; }
+  importManifestNative();
+}
+
+function importErrorText(e) {
+  if (!e) return '';
+  return e.message || String(e);
+}
+
+function showImportError(title, message) {
+  dialog(title, esc(message), [{ label: T('ok'), cls: 'primary' }]);
+}
+
+async function importVideoNative() {
+  const id = state.detail;
+  if (!id) return;
+  const prog = showProgress(T('saving'), T('savingHint'), true);
+  try {
+    const res = await platform.importVideo(id, (loaded, total) => {
+      prog.update(total ? loaded / total : 0, loaded, total);
+    });
+    if (!res || res.canceled) { prog.close(); return; }
+    prog.update(1, res.bytes, res.bytes);
+
+    // Integrity gate: the file only counts as cached once this WebView can load it
+    // and land on byte-exact seek targets through the native byte-range handler.
+    let okSeek = false;
+    try {
+      const url = await db.getVideoURL(id, { video: true, bytes: res.bytes });
+      okSeek = url ? await verifySeek(url) : false;
+    } catch { okSeek = false; }
+
+    if (!okSeek) {
+      await platform.deleteMedia(id, 'video').catch(() => {});
+      const bad = { id, ...mediaOf(id), video: false, invalidVideo: true, bytes: 0 };
+      state.media[id] = bad;
+      await db.putMedia(bad);
+      prog.close();
+      dialog(T('saveBad', { msg: T('verify') }), esc(T('verifyFailBody')), [
+        { label: T('retry'), cls: 'primary', fn: () => startVideoImport() },
+        { label: T('continueCancel'), cls: 'ghost' }
+      ]);
+      render();
+      return;
+    }
+
+    const m = {
+      id, ...mediaOf(id), video: true, invalidVideo: false, native: true,
+      ext: res.ext, bytes: res.bytes, name: res.name, verifiedAt: Date.now(),
+      slides: !!mediaOf(id).slides
+    };
+    state.media[id] = m;
+    await db.putMedia(m);
+    prog.close();
+    notice(T('saveOk'));
+    render();
+  } catch (e) {
+    prog.close();
+    const msg = importErrorText(e);
+    if ((e && e.code === 'P070_NO_SPACE') || /空间不足/.test(msg)) {
+      dialog(T('quotaTitle'), esc(msg), [
+        { label: T('manageCache'), cls: 'primary', fn: () => goTab('offline') },
+        { label: T('chooseOther'), fn: () => startVideoImport() },
+        { label: T('continueCancel'), cls: 'ghost' }
+      ]);
+      return;
+    }
+    if (/cancel/i.test(msg)) return;
+    showImportError(T('saveBad', { msg }), msg);
+  }
+}
+
+async function importSlidesNative() {
+  const id = state.detail;
+  if (!id) return;
+  try {
+    const res = await platform.importSlides(id);
+    if (!res || res.canceled) return;
+    let scan = { selfContained: true, refs: [] };
+    if (!res.truncated && res.text) {
+      try { scan = scanSelfContained(res.text); } catch {}
+    }
+    const m = {
+      id, ...mediaOf(id), slides: true, native: true,
+      slidesBytes: res.bytes, slidesName: res.name,
+      slidesRemote: !scan.selfContained, slidesRefs: scan.refs
+    };
+    state.media[id] = m;
+    await db.putMedia(m);
+    notice(T('slidesOk'));
+    render();
+    if (!scan.selfContained) notice(T('slidesRemote'));
+  } catch (e) {
+    showImportError(T('slidesBad', { msg: importErrorText(e) }), importErrorText(e));
+  }
+}
+
+async function importManifestNative() {
+  let res;
+  try {
+    res = await platform.importManifest();
+  } catch (e) {
+    showImportError(T('importBad', { msg: '' }), importErrorText(e));
+    return;
+  }
+  if (!res || res.canceled) return;
+  try {
+    await importJsonText(res.text);
+    closeOverlay();
+  } catch (e) {
+    showImportError(T('importBad', { msg: '' }), e.message || String(e));
+  }
+}
+
+async function refreshNativeMedia() {
+  if (!isNative) return;
+  for (const id of Object.keys(state.media)) {
+    const m = state.media[id];
+    if (!m) continue;
+    try {
+      const info = await platform.mediaInfo(id);
+      let changed = false;
+      if (m.video && (!info.video.exists || (m.bytes && info.video.bytes !== m.bytes))) {
+        m.video = false; m.invalidVideo = info.video.exists === false; m.bytes = 0; changed = true;
+      }
+      if (m.slides && !info.slides.exists) { m.slides = false; changed = true; }
+      if (changed) await db.putMedia(m);
+    } catch {}
+  }
 }
 
 /* ---------- overlays ---------- */
@@ -492,8 +658,16 @@ function openSlides() {
   if (!x) return;
   const m = mediaOf(x.id);
   const has = m.slides || x.demoSlides;
-  if (!has) { $('#html-file').click(); return; }
+  if (!has) { startSlidesImport(); return; }
   const v = document.querySelector('video'); if (v && !v.paused) { v.pause(); savePosition(x.id, v.currentTime); }
+  if (isNative && m.slides) {
+    const dark = document.documentElement.dataset.theme === 'dark';
+    platform.openSlides(x.id, x.title, dark ? 'dark' : 'light', {
+      back: T('slideBack'), full: T('slideFull'), exitFull: T('slideExitFull'),
+      error: T('slidesError'), errorBody: T('slidesErrorBody'), backShort: T('backShort')
+    }).catch(() => notice(T('slidesMissing')));
+    return;
+  }
   (async () => {
     let text = null;
     if (m.slides) text = await db.getSlides(x.id);
@@ -604,24 +778,27 @@ function askDuplicate(count) {
 }
 async function importJson(file) {
   try {
-    const txt = await file.text();
-    const json = JSON.parse(txt);
-    const arr = Array.isArray(json) ? json : json.items;
-    if (!Array.isArray(arr) || !arr.length) throw new Error(T('importNone'));
-    const norm = arr.map(normalizeItem).filter(Boolean);
-    if (!norm.length) throw new Error(T('importNone'));
-    const dups = norm.filter(x => !!find(x.id));
-    let mode = 'keep';
-    if (dups.length) {
-      mode = await askDuplicate(dups.length);
-      if (mode === 'cancel') { notice(T('cancel')); return; }
-    }
-    await applyImport(norm, mode);
+    await importJsonText(await file.text());
   } catch (e) {
     dialog(T('importBad',{msg:''}), esc(e.message || String(e)), [{ label:T('ok'), cls:'primary' }]);
   } finally {
     $('#json-file').value = '';
   }
+}
+
+async function importJsonText(txt) {
+  const json = JSON.parse(txt);
+  const arr = Array.isArray(json) ? json : json.items;
+  if (!Array.isArray(arr) || !arr.length) throw new Error(T('importNone'));
+  const norm = arr.map(normalizeItem).filter(Boolean);
+  if (!norm.length) throw new Error(T('importNone'));
+  const dups = norm.filter(x => !!find(x.id));
+  let mode = 'keep';
+  if (dups.length) {
+    mode = await askDuplicate(dups.length);
+    if (mode === 'cancel') { notice(T('cancel')); return; }
+  }
+  await applyImport(norm, mode);
 }
 function downloadExample() {
   const example = { version:1, items:[{ id:'my-pickleball-video-01', title:'我的匹克球教学视频', en:'My Pickleball Tutorial', lang:'zh', topic:'匹克球', tags:['规则','入门'], time:'05:20', summary:['第一条重点','第二条重点'], transcript:'这里放已经转写整理好的原文稿', terms:[['Non-volley zone','非截击区']], source:'', slides:false }] };
@@ -636,6 +813,9 @@ function downloadExample() {
 /* ---------- sharing ---------- */
 async function copyText(txt) {
   if (!txt) return false;
+  if (isNative) {
+    try { await platform.copyText(txt); return true; } catch {}
+  }
   try { await navigator.clipboard.writeText(txt); return true; }
   catch {
     try {
@@ -661,6 +841,11 @@ async function copyShare() {
 async function nativeShare() {
   const text = shareString();
   if (!text) { notice(T('noLinks')); return; }
+  if (isNative) {
+    try { await platform.shareText(text, T('shareTitle')); }
+    catch { copyShare(); }
+    return;
+  }
   if (navigator.share) {
     try { await navigator.share({ title:'Pickleball · Videos to Watch', text }); }
     catch (e) { if (e.name !== 'AbortError') copyShare(); }
@@ -714,8 +899,8 @@ async function selfCheck() {
       if (!ok) { m.video = false; m.invalidVideo = true; delete m.opfsName; delete m.mode; await db.putMedia(m); lost++; }
     }
     if (m.slides) {
-      const text = await db.getSlides(id);
-      if (!text) { m.slides = false; await db.putMedia(m); lost++; }
+      const okSlides = await db.hasSlides(id);
+      if (!okSlides) { m.slides = false; await db.putMedia(m); lost++; }
     }
   }
   if (lost) setTimeout(() => notice(T('localLost',{n:lost})), 900);
@@ -744,11 +929,18 @@ async function boot() {
     setTimeout(() => notice(T('dbFail')), 500);
   }
   render(false);
-  registerSW();
+  if (isNative) {
+    try { ENV = await platform.info(); } catch {}
+    platform.onBack(handleBack);
+    window.__p070Back = handleBack;
+    document.documentElement.classList.add('native');
+  } else {
+    registerSW();
+  }
   bindEnvironment();
   // Test-only seeding hook, limited to localhost; never visible in the UI.
   const seedParams = new URLSearchParams(location.search);
-  if (seedParams.get('p070seed') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+  if (!isNative && seedParams.get('p070seed') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
     seedTestVideo(seedParams.get('p070seed'), seedParams.get('src') || './assets/demo.mp4');
   }
 }
@@ -860,14 +1052,19 @@ function handleClick(e) {
   }
   else if (a === 'import') askImport();
   else if (a === 'overlay-close') closeOverlay();
-  else if (a === 'pick-json') $('#json-file').click();
+  else if (a === 'pick-json') startManifestImport();
   else if (a === 'download-json') downloadExample();
-  else if (a === 'pick-video') $('#video-file').click();
-  else if (a === 'pick-html') $('#html-file').click();
+  else if (a === 'pick-video') startVideoImport();
+  else if (a === 'pick-html') startSlidesImport();
   else if (a === 'slides-open') openSlides();
   else if (a === 'source-edit') askSource();
   else if (a === 'save-source') saveSource();
-  else if (a === 'source-open') { const u = liveSrc(find(state.detail)); if (/^https?:\/\//.test(u)) window.open(u, '_blank', 'noopener,noreferrer'); else notice(T('sourceEmpty')); }
+  else if (a === 'source-open') {
+    const u = liveSrc(find(state.detail));
+    if (!/^https?:\/\//.test(u)) { notice(T('sourceEmpty')); return; }
+    if (isNative) platform.openExternal(u).catch(() => notice(T('sourceOpenFail')));
+    else window.open(u, '_blank', 'noopener,noreferrer');
+  }
   else if (a === 'remove-cache') removeCache(id);
   else if (a === 'clear-cache') clearAllCache();
   else if (a === 'clear-share') clearShareConfirm();
@@ -877,7 +1074,11 @@ function handleClick(e) {
   else if (a === 'slide-prev') stepSlide('prev');
   else if (a === 'slide-next') stepSlide('next');
   else if (a === 'slide-fullscreen') fullSlides();
-  else if (a === 'cancel-progress') { const el = $('#progress-mask'); if (el) el.remove(); }
+  else if (a === 'cancel-progress') {
+    if (isNative) platform.cancelImport().catch(() => {});
+    const el = $('#progress-mask');
+    if (el) el.remove();
+  }
 }
 function updateShare(id) {
   if (!id) return;
