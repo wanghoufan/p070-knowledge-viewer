@@ -139,3 +139,67 @@ body{font-size:19px;line-height:1.55}
 @media(min-width:361px){.brand-en{white-space:nowrap}}
 .video-empty small{font-size:14px}
 .slide-controls{font-size:15px}
+
+/* Real cover images from the imported manifest; gradient art stays as fallback. */
+.art.has-cover{background:#0c211c}
+.art-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.art.has-cover .artflag,.art.has-cover .duration{z-index:2}
+
+/* The player box follows the real video aspect ratio so portrait clips are not cropped.
+   16/9 stays as the placeholder ratio until metadata arrives. */
+.detail-video{max-height:70dvh}
+.detail-video video{max-height:70dvh}
+
+/* Card density: the cover sets the height, the text column is trimmed to match it,
+   and the cache state becomes a symbol on the cover instead of a text row. */
+.item{min-height:0;padding:8px;gap:11px;align-items:center;border-radius:14px}
+.art{width:92px;min-width:92px;height:92px;border-radius:11px}
+.item-main{padding:1px 48px 1px 0;gap:3px;justify-content:center}
+.item-title{font-size:17px;line-height:1.3;-webkit-line-clamp:2}
+.item-en{font-size:13px;line-height:1.2}
+.item-badges{margin-top:3px;gap:4px}
+.tag{font-size:12px;padding:2px 7px;border-radius:6px}
+.add-inline{position:absolute;right:8px;bottom:50%;transform:translateY(50%);width:40px;height:40px;font-size:0}
+.item-hit{border-radius:14px}
+.st{position:absolute;left:8px;bottom:8px;z-index:3;width:22px;height:22px;border-radius:50%;
+  display:grid;place-items:center;border:1px solid #ffffff59;backdrop-filter:saturate(1.2)}
+.st .icon{width:13px;height:13px}
+.st-ok{background:var(--green);border-color:#ffffff8c;color:#fff}
+.st-demo{background:#0b6f57;color:#fff}
+.st-none{background:#0b2522a8;color:#fff}
+.st-bad{background:#b3261e;color:#fff}
+.st .icon svg{stroke-width:2.4}
+.art .artflag,.art .duration{font-size:11px;padding:2px 5px;border-radius:5px;line-height:1.35}
+
+/* Header and filters take less vertical space: the hero banner is gone, theme switch
+   and import live in Settings, and the language segment is a compact pill row. */
+.appbar{padding:12px 16px 8px;gap:9px}
+.brand-icon{height:34px;width:34px;border-radius:10px}
+.brand-name{font-size:17px}
+.brand-en{font-size:12px;margin-top:1px}
+.search{height:42px;margin:2px 0 9px}
+.seg{gap:6px;margin-bottom:9px}
+.seg button{height:34px;min-height:34px;font-size:13px;border-radius:9px}
+.tagrow{margin-bottom:8px;gap:6px}
+.tagbtn{min-height:34px;font-size:13px;padding:7px 11px;border-radius:8px}
+.sectionbar{margin:8px 0 8px}
+.sectionbar strong{font-size:18px}
+.sectionbar small{font-size:13px}
+.content{padding:0 16px 18px}
+
+/* Slimmer bottom bar (68 → 58px). The extra bottom padding keeps the labels clear of
+   Android's system navigation strip, which this browser does not report via safe-area. */
+.bottom{height:calc(58px + env(safe-area-inset-bottom));padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.navbutton{gap:1px;font-size:11px;font-weight:700}
+.navbutton .icon{width:18px;height:18px}
+.navbutton .nav-ic{line-height:0}
+.app{padding-bottom:calc(66px + env(safe-area-inset-bottom))}
+.toast{bottom:calc(72px + env(safe-area-inset-bottom))}
+.updatebar{bottom:calc(64px + env(safe-area-inset-bottom))}
+.navcount{top:-3px;right:-8px;min-width:15px;height:15px;line-height:15px;font-size:10px}
+
+.navbutton .nav-ic{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.navcount{position:absolute;top:-4px;right:-10px;min-width:16px;height:16px;line-height:16px;
+  padding:0 4px;border-radius:9px;background:var(--green);color:#fff;font-size:11px;font-weight:760;
+  text-align:center;vertical-align:baseline;box-shadow:0 0 0 2px var(--paper)}
+

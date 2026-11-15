@@ -82,3 +82,9 @@
 /*.jks
 /*.keystore
 /.local/
+
+# Local working data (device drivers, media staging, memory)
+/.workbuddy/
+
+# Downloaded YouTube sources (large media, not distributed)
+/youtube/
