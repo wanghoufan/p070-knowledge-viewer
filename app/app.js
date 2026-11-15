@@ -3,7 +3,7 @@ import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
 import { platform, isNative } from './platform.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.2.3';
 /* Real build facts read from the installed APK (never a dev hash on screen). */
 let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
@@ -31,6 +31,7 @@ const ICONS = {
   edit:'<path d="M12 20h9M16 4l4 4-11 11H5v-4z"/>',
   external:'<path d="M14 3h7v7m0-7-9 9M20 14v6H4V4h6"/>',
   info:'<circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10h.01"/>',
+  alert:'<path d="M12 3.5 2.6 20h18.8z"/><path d="M12 9.5v4.5m0 3h.01"/>',
   play:'<path d="M8 5v14l11-7z"/>'
 };
 
@@ -111,24 +112,28 @@ function notice(s) {
 }
 
 function brandHeader() {
-  return `<header class="appbar"><div class="brand-icon">${icon('presentation',24)}</div><div><div class="brand-name">随身讲解库</div><div class="brand-en">Pocket Presenter</div></div>${navigator.onLine ? '' : `<span class="netbadge">${esc(T('netOffline'))}</span>`}<div class="appbar-spacer"></div><button class="head-btn" data-action="theme" title="${esc(T('darkMode'))}" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',21)}</button><button class="head-btn" data-action="import" title="${esc(T('importRow'))}" aria-label="${esc(T('importRow'))}">${icon('plus',24)}</button></header>`;
+  return `<header class="appbar"><div class="brand-icon">${icon('presentation',24)}</div><div><div class="brand-name">随身讲解库</div><div class="brand-en">Pocket Presenter</div></div>${navigator.onLine ? '' : `<span class="netbadge">${esc(T('netOffline'))}</span>`}</header>`;
 }
 
 function art(x) {
-  return `<div class="art ${esc(x.art || 'court')}"><div class="courtlines"></div><span class="artball"></span><span class="artflag">${x.lang === 'en' ? 'EN' : T('chinese')}</span><span class="duration">${esc(x.time || T('video'))}</span></div>`;
+  const flag = `<span class="artflag">${x.lang === 'en' ? 'EN' : T('chinese')}</span><span class="duration">${esc(x.time || T('video'))}</span>`;
+  if (x.cover) return `<div class="art has-cover"><img class="art-img" src="${esc(x.cover)}" alt="" loading="lazy" decoding="async">${flag}</div>`;
+  return `<div class="art ${esc(x.art || 'court')}"><div class="courtlines"></div><span class="artball"></span>${flag}</div>`;
 }
 
-function statusOf(x) {
+/* Status is a compact symbol on the cover instead of a text line, so the card height
+   is set by the cover and more items fit on one screen. The wording stays in title/aria. */
+function statusIcon(x) {
   const m = mediaOf(x.id);
-  if (m.invalidVideo) return { cls:'bad', text:T('lostVideo') };
-  if (m.video) return { cls:'good', text:T('savedVideo') };
-  if (x.demoVideo) return { cls:'good', text:T('demoClip') };
-  return { cls:'', text:T('needVideo') };
+  if (m.invalidVideo) return { cls:'st-bad', name:'alert', text:T('lostVideo') };
+  if (m.video) return { cls:'st-ok', name:'check', text:T('savedVideo') };
+  if (x.demoVideo) return { cls:'st-demo', name:'play', text:T('demoClip') };
+  return { cls:'st-none', name:'download', text:T('needVideo') };
 }
 
 function card(x) {
-  const st = statusOf(x);
-  return `<article class="item">${art(x)}<div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}<span class="tag">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="item-foot"><span class="online ${st.cls}">${esc(st.text)}</span><button class="add-inline" data-action="share-toggle" data-id="${esc(x.id)}" aria-label="${esc(state.selected.includes(x.id) ? T('removeShare') : T('addShare'))}">${state.selected.includes(x.id) ? icon('check',18) : icon('plus',18)}</button></div></div><button class="item-hit" data-action="open" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
+  const st = statusIcon(x);
+  return `<article class="item">${art(x)}<span class="st ${st.cls}" title="${esc(st.text)}" aria-label="${esc(st.text)}" role="img">${icon(st.name,13)}</span><div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div><button class="add-inline" data-action="share-toggle" data-id="${esc(x.id)}" aria-label="${esc(state.selected.includes(x.id) ? T('removeShare') : T('addShare'))}">${state.selected.includes(x.id) ? icon('check',17) : icon('plus',17)}</button><button class="item-hit" data-action="open" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
 }
 
 function library() {
@@ -141,11 +146,11 @@ function tagList() {
   return base.concat(extra);
 }
 function libraryResults(list) {
-  return `<section class="topic-hero"><div class="hero-eyebrow">${esc(T('heroEyebrow'))}</div><div class="hero-title">${esc(T('heroTitle'))}</div><div class="hero-sub">${esc(T('heroSub'))}</div><div class="hero-bottom">${esc(T('heroBottom',{n:all().length}))}</div><div class="hero-graphic"><div class="paddle two"></div><div class="paddle"></div><div class="ball-img"></div></div></section><div class="sectionbar"><strong>${esc(T('sectionTitle'))}</strong><small>${esc(T('found',{n:list.length}))}</small></div>${list.length ? `<div class="items">${list.map(card).join('')}</div>` : `<div class="empty">${icon('search',28)}<h3>${esc(T('emptyTitle'))}</h3>${esc(T('emptyText'))}<p><button class="pillbtn" data-action="reset">${esc(T('clearFilter'))}</button></p></div>`}<p class="muted-note" style="margin:14px 3px">${esc(T('demoNote'))}</p>`;
+  return `<div class="sectionbar"><strong>${esc(T('sectionTitle'))}</strong><small>${esc(T('found',{n:list.length}))}</small></div>${list.length ? `<div class="items">${list.map(card).join('')}</div>` : `<div class="empty">${icon('search',28)}<h3>${esc(T('emptyTitle'))}</h3>${esc(T('emptyText'))}<p><button class="pillbtn" data-action="reset">${esc(T('clearFilter'))}</button></p></div>`}<div class="note-box">${esc(T('demoNote'))}</div>`;
 }
 
 function bottom() {
-  return `<nav class="bottom" aria-label="${esc(T('navHome'))}">${[['home','home',T('navHome')],['offline','download',T('navOffline')],['share','share',T('navShare')],['settings','settings',T('navSettings')]].map(([id,ic,label]) => `<button data-action="tab" data-val="${id}" class="navbutton ${state.tab === id && !state.detail ? 'active' : ''}">${icon(ic,22)}<span>${label}${id === 'share' && state.selected.length ? ` <span class="navcount">${state.selected.length}</span>` : ''}</span></button>`).join('')}</nav>`;
+  return `<nav class="bottom" aria-label="${esc(T('navHome'))}">${[['home','home',T('navHome')],['offline','download',T('navOffline')],['share','share',T('navShare')],['settings','settings',T('navSettings')]].map(([id,ic,label]) => `<button data-action="tab" data-val="${id}" class="navbutton ${state.tab === id && !state.detail ? 'active' : ''}"><span class="nav-ic">${icon(ic,22)}${id === 'share' && state.selected.length ? `<span class="navcount" aria-hidden="true">${state.selected.length > 9 ? '9+' : state.selected.length}</span>` : ''}</span><span>${label}</span></button>`).join('')}</nav>`;
 }
 
 function detail() {
@@ -157,7 +162,8 @@ function detail() {
   const status = m.invalidVideo ? T('lostVideo') : saved ? T('cachedPlayable') : x.demoVideo ? T('demoPlayable') : T('notImported');
   const summary = x.summary || [];
   const slideSub = m.slides ? (m.slidesRemote ? T('slidesRemote') : T('slidesSelf')) : x.demoSlides ? T('demoSlides') : T('slidesNotSub');
-  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" style="flex:1" data-action="pick-video">${icon('download',16)}${esc(T('importVideo'))}</button><button class="pillbtn" style="flex:1" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',16)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}。${esc(T('videoHint'))}</p><div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div><p class="muted-note" style="margin:13px 3px">${esc(T('detailNote'))}</p></main></div>`;
+  const coverStyle = x.cover ? ` style="background:linear-gradient(#0b252299,#0b2522cc),url('${esc(x.cover)}') center/cover no-repeat"` : '';
+  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"${coverStyle}><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" style="flex:1" data-action="pick-video">${icon('download',16)}${esc(T('importVideo'))}</button><button class="pillbtn" style="flex:1" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',16)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}</p><div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div></main></div>`;
 }
 
 function offline() {
@@ -171,11 +177,12 @@ function shareString() {
   const chosen = state.selected.map(find).filter(Boolean);
   const seen = new Set();
   const valid = chosen.filter(x => /^https?:\/\//i.test(liveSrc(x)) && !seen.has(liveSrc(x)) && seen.add(liveSrc(x)));
-  return `Pickleball · Videos to Watch\n\n` + valid.map((x,i) => `${i+1}. ${x.en || x.title}\n${liveSrc(x)}`).join('\n\n');
+  return `${T('shareHeading')}\n\n` + valid.map((x,i) => `${i+1}. ${x.en || x.title}\n${liveSrc(x)}`).join('\n\n');
 }
 function share() {
   const chosen = state.selected.map(find).filter(Boolean);
-  const valid = chosen.filter(x => /^https?:\/\//i.test(liveSrc(x)));
+  const seen = new Set();
+  const valid = chosen.filter(x => /^https?:\/\//i.test(liveSrc(x)) && !seen.has(liveSrc(x)) && seen.add(liveSrc(x)));
   return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('shareTitle'))}</h1><p class="subline">${esc(T('shareSub'))}</p><div class="settings"><div class="setting"><span class="lefticon">${icon('share',23)}</span><div><strong>${esc(T('selectedN',{n:chosen.length}))}</strong><small>${esc(T('linksN',{n:valid.length}))}</small></div><button class="pillbtn" data-action="clear-share" style="margin-left:auto">${esc(T('clear'))}</button></div></div>${chosen.length ? chosen.map(x => `<div class="share-item"><label class="checkwrap"><input type="checkbox" checked data-action="share-check" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></label><div class="sharebody"><strong>${esc(x.title)}</strong><small>${esc(x.en || '')} · ${liveSrc(x) ? esc(hostOf(liveSrc(x))) : esc(T('notSet'))}</small></div><button class="head-btn" style="width:44px;height:44px" data-action="open" data-id="${esc(x.id)}" title="${esc(T('open'))}">${icon('chevron',18)}</button></div>`).join('') + `<div class="sectionbar"><strong>${esc(T('preview'))}</strong><small>${esc(T('previewSub'))}</small></div><div class="share-preview">${esc(valid.length ? shareString() : T('noLinks'))}</div><div class="share-actions"><button class="pillbtn green" style="flex:1" ${valid.length ? '' : 'disabled'} data-action="copy-share">${icon('copy',16)}${esc(T('copyList'))}</button><button class="pillbtn" style="flex:1" ${valid.length ? '' : 'disabled'} data-action="system-share">${icon('share',16)}${esc(T('systemShare'))}</button></div>` : `<div class="empty">${icon('share',30)}<h3>${esc(T('shareEmpty'))}</h3>${esc(T('shareEmptyText'))}<p><button class="pillbtn green" data-action="tab" data-val="home">${esc(T('goPick'))}</button></p></div>`}<div class="note-box">${esc(T('shareNote'))}</div></main>`;
 }
 
@@ -281,10 +288,12 @@ async function loadVideo(id) {
   v.playsInline = true;
   v.preload = 'auto';
   v.src = url;
+  if (x.cover) v.poster = x.cover;
   v.setAttribute('aria-label', T('video'));
   host.innerHTML = '';
   host.appendChild(v);
   v.addEventListener('loadedmetadata', () => {
+    if (v.videoWidth && v.videoHeight) host.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
     const saved = posCache[id] || 0;
     if (saved > 3 && saved < (v.duration || Infinity) * 0.95) {
       try { v.currentTime = saved; } catch {}
@@ -715,6 +724,12 @@ function fullSlides() {
 }
 
 /* ---------- import ---------- */
+function coverOf(x) {
+  const raw = String((x && (x.cover || x.cover_url || x.poster)) || '').trim();
+  if (!raw) return '';
+  if (!/^(data:image\/(png|jpe?g|webp|avif|gif);base64,|https:\/\/)/i.test(raw)) return '';
+  return raw.length > 600000 ? '' : raw;
+}
 function normalizeItem(x, i) {
   if (!x || typeof x !== 'object' || !String(x.title || '').trim()) return null;
   const tags = Array.isArray(x.tags) ? x.tags.slice(0, 8).map(s => String(s).slice(0, 15)) : [];
@@ -729,7 +744,7 @@ function normalizeItem(x, i) {
     id: rawId, order: 100 + i, title: String(x.title).slice(0, 90), en: String(x.en || '').slice(0, 100),
     lang: (x.lang || x.language) === 'en' ? 'en' : 'zh', topic: String(x.topic || '未分类').slice(0, 30), tags,
     time: String(x.time || ''), art: x.art || 'court', summary, transcript: String(x.transcript || ''),
-    terms, source: String(x.source || x.source_url || '').trim(), demoVideo: false, demoSlides: false
+    terms, source: String(x.source || x.source_url || '').trim(), cover: coverOf(x), demoVideo: false, demoSlides: false
   };
 }
 async function applyImport(list, mode) {
@@ -747,7 +762,7 @@ async function applyImport(list, mode) {
         delete m.opfsName; delete m.mode; delete m.slidesBytes;
         state.media[it.id] = m; await db.putMedia(m);
       }
-      const merged = mode === 'replace' ? it : { ...old, ...it, source: it.source || old.source, order: old.order, demoVideo: old.demoVideo, demoSlides: old.demoSlides };
+      const merged = mode === 'replace' ? it : { ...old, ...it, source: it.source || old.source, cover: it.cover || old.cover, order: old.order, demoVideo: old.demoVideo, demoSlides: old.demoSlides };
       await db.putItem(merged); items.push(merged); updated++;
     } else {
       await db.putItem(it); items.push(it); added++;
@@ -801,7 +816,7 @@ async function importJsonText(txt) {
   await applyImport(norm, mode);
 }
 function downloadExample() {
-  const example = { version:1, items:[{ id:'my-pickleball-video-01', title:'我的匹克球教学视频', en:'My Pickleball Tutorial', lang:'zh', topic:'匹克球', tags:['规则','入门'], time:'05:20', summary:['第一条重点','第二条重点'], transcript:'这里放已经转写整理好的原文稿', terms:[['Non-volley zone','非截击区']], source:'', slides:false }] };
+  const example = { version:1, items:[{ id:'my-pickleball-video-01', title:'我的匹克球教学视频', en:'My Pickleball Tutorial', lang:'zh', topic:'匹克球', tags:['规则','入门'], time:'05:20', cover:'', summary:['第一条重点','第二条重点'], transcript:'这里放已经转写整理好的原文稿', terms:[['Non-volley zone','非截击区']], source:'', slides:false }] };
   const blob = new Blob([JSON.stringify(example, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   const url = URL.createObjectURL(blob);
@@ -847,7 +862,7 @@ async function nativeShare() {
     return;
   }
   if (navigator.share) {
-    try { await navigator.share({ title:'Pickleball · Videos to Watch', text }); }
+    try { await navigator.share({ title:T('shareHeading'), text }); }
     catch (e) { if (e.name !== 'AbortError') copyShare(); }
   } else copyShare();
 }
