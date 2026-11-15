@@ -88,3 +88,6 @@
 
 # Downloaded YouTube sources (large media, not distributed)
 /youtube/
+
+# Editor screenshots from local QA runs
+/.openchamber/
