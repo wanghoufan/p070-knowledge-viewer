@@ -4,8 +4,9 @@
   "version": "1.0.0",
   "description": "随身处讲解库 Pocket Presenter - Android APK (Capacitor shell over the approved web UI)",
   "scripts": {
-    "build:www": "node tools/build-www.mjs",
-    "sync:android": "npm run build:www && cap sync android"
+    "build:www": "node tools/check-ui-baseline.mjs && node tools/build-www.mjs",
+    "sync:android": "npm run build:www && cap sync android",
+    "check:ui": "node tools/check-ui-baseline.mjs"
   },
   "dependencies": {
     "@capacitor/android": "7.6.10",
