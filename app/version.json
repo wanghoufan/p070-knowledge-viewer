@@ -1,7 +1,7 @@
 {
   "name": "随身讲解库",
   "name_en": "Pocket Presenter",
-  "version": "1.2.3",
+  "version": "1.2.5",
   "build": "2026-11-14",
   "baseline": "PRODUCT_PLAN_V1.1",
   "notes": "离线 PWA；清单内嵌封面；卡片密度与状态符号"

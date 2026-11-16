@@ -3,7 +3,7 @@ import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
 import { platform, isNative } from './platform.js';
 
-const VERSION = '1.2.3';
+const VERSION = '1.2.5';
 /* Real build facts read from the installed APK (never a dev hash on screen). */
 let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
@@ -328,6 +328,9 @@ async function loadVideo(id) {
     if (now - state.lastPosSaved > 2500) { state.lastPosSaved = now; savePosition(id, v.currentTime); }
   });
   v.addEventListener('pause', () => savePosition(id, v.currentTime));
+  /* Seek while paused has no pause event; without this the last position can be lost
+     because the throttled timeupdate already wrote an earlier seek target. */
+  v.addEventListener('seeked', () => savePosition(id, v.currentTime));
   v.addEventListener('error', () => {
     const st = $('#video-status');
     if (st) st.textContent = T('lostVideo') + '。' + T('videoHint');
@@ -347,6 +350,8 @@ function handleBack() {
 }
 /* 安卓返回键钩子必须在模块加载时就挂好，不能依赖异步 boot */
 window.__p070Back = handleBack;
+/* WebView 在系统深浅色切换时不派发 prefers-color-scheme change，由原生宿主回调这里重算主题。 */
+window.__p070ThemeRefresh = applyTheme;
 
 function startVideoImport() {
   if (!state.detail) return;

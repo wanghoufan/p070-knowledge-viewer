@@ -83,6 +83,18 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
+    public void onConfigurationChanged(android.content.res.Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Android WebView keeps the old prefers-color-scheme value and fires no change
+        // event on uiMode switches, so the page is told to re-evaluate the theme here.
+        WebView webView = getBridge() == null ? null : getBridge().getWebView();
+        if (webView != null) {
+            webView.post(() -> webView.evaluateJavascript(
+                "(function(){try{window.__p070ThemeRefresh&&window.__p070ThemeRefresh();}catch(e){}})()", null));
+        }
+    }
+
+    @Override
     public void onBackPressed() {
         WebView webView = getBridge() == null ? null : getBridge().getWebView();
         if (webView == null) {
