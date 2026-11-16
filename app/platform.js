@@ -95,6 +95,10 @@ export const platform = {
   /** Status/navigation bar appearance + window background follow the in-app theme. */
   async setSystemBars(dark) { return call('setSystemBars', { dark: !!dark }); },
 
+  /** Video fullscreen helpers: lock landscape and hide the system bars. */
+  async setOrientation(mode) { return call('setOrientation', { mode: mode || 'auto' }); },
+  async setImmersive(on) { return call('setImmersive', { on: !!on }); },
+
   async shareText(text, title) { return call('shareText', { text, title: title || '' }); },
 
   async copyText(text) { return call('copyText', { text }); },

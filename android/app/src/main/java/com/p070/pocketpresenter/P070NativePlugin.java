@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
@@ -13,6 +14,9 @@ import android.provider.OpenableColumns;
 import android.webkit.WebSettings;
 
 import androidx.activity.result.ActivityResult;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -364,6 +368,39 @@ public class P070NativePlugin extends Plugin {
     public void setSystemBars(final PluginCall call) {
         final boolean dark = Boolean.TRUE.equals(call.getBoolean("dark", false));
         getActivity().runOnUiThread(() -> MainActivity.applySystemBars(getActivity(), dark));
+        call.resolve(new JSObject().put("ok", true));
+    }
+
+    /** mode: 'landscape' | 'portrait' | 'auto' — used by the in-app video fullscreen. */
+    @PluginMethod
+    public void setOrientation(final PluginCall call) {
+        final String mode = call.getString("mode", "auto");
+        getActivity().runOnUiThread(() -> {
+            if ("landscape".equals(mode)) {
+                getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            } else if ("portrait".equals(mode)) {
+                getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+            } else {
+                getActivity().setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+            }
+        });
+        call.resolve(new JSObject().put("ok", true));
+    }
+
+    /** Hides/shows the status and navigation bars for video fullscreen. */
+    @PluginMethod
+    public void setImmersive(final PluginCall call) {
+        final boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        getActivity().runOnUiThread(() -> {
+            WindowInsetsControllerCompat c = WindowCompat.getInsetsController(
+                getActivity().getWindow(), getActivity().getWindow().getDecorView());
+            if (on) {
+                c.hide(WindowInsetsCompat.Type.systemBars());
+                c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            } else {
+                c.show(WindowInsetsCompat.Type.systemBars());
+            }
+        });
         call.resolve(new JSObject().put("ok", true));
     }
 

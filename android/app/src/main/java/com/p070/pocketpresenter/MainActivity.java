@@ -39,19 +39,38 @@ public class MainActivity extends BridgeActivity {
         WebView webView = getBridge().getWebView();
         webView.setBackgroundColor(Color.parseColor("#f7f9f7"));
 
-        // The window is edge-to-edge (Android 15+ enforces it), so the safe area is applied
-        // to the WebView container instead of relying on CSS env() support in the WebView.
+        // The window is edge-to-edge (Android 15+ enforces it). The status bar stays outside
+        // the WebView, but the bottom is NOT padded here: padding the root left a blank strip
+        // above the system bar. Instead the nav-bar height is pushed into the page as --sab,
+        // so the tab bar paints to the screen edge and its buttons sit above the nav bar.
         final View root = (View) webView.getParent();
         if (root != null) {
             root.setBackgroundColor(Color.parseColor("#f7f9f7"));
             ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
                 Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
                 Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
-                v.setPadding(0, bars.top, 0, Math.max(bars.bottom, ime.bottom));
+                v.setPadding(0, bars.top, 0, ime.bottom);
+                pushSafeBottom(webView, bars.bottom);
                 return insets;
             });
             ViewCompat.requestApplyInsets(root);
+            // Page load can finish after the first inset dispatch; push again once ready.
+            webView.postDelayed(() -> pushSafeBottom(webView, bottomInsetPx(webView)), 1200);
+            webView.postDelayed(() -> pushSafeBottom(webView, bottomInsetPx(webView)), 3000);
         }
+    }
+
+    private static int bottomInsetPx(View v) {
+        WindowInsetsCompat wi = ViewCompat.getRootWindowInsets(v);
+        return wi == null ? 0 : wi.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+    }
+
+    private static void pushSafeBottom(WebView webView, int bottomPx) {
+        if (webView == null) return;
+        float density = webView.getResources().getDisplayMetrics().density;
+        int css = Math.round(bottomPx / density);
+        String js = "(function(){document.documentElement.style.setProperty('--sab','" + css + "px');})()";
+        webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
     /** Keeps the status/navigation bar icons and window background in step with the app theme. */

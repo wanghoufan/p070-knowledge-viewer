@@ -32,21 +32,18 @@ const ICONS = {
   external:'<path d="M14 3h7v7m0-7-9 9M20 14v6H4V4h6"/>',
   info:'<circle cx="12" cy="12" r="10"/><path d="M12 11v6m0-10h.01"/>',
   alert:'<path d="M12 3.5 2.6 20h18.8z"/><path d="M12 9.5v4.5m0 3h.01"/>',
-  play:'<path d="M8 5v14l11-7z"/>'
+  play:'<path d="M8 5v14l11-7z"/>',
+  expand:'<path d="M8 3H5a2 2 0 0 0-2 2v3m0 8v3a2 2 0 0 0 2 2h3m8-18h3a2 2 0 0 1 2 2v3m0 8v3a2 2 0 0 1-2 2h-3"/>'
 };
 
-const SEED = [
-  {id:'pk1',order:1,title:'匹克球基础规则',en:'Pickleball Basic Rules',lang:'zh',topic:'匹克球',tags:['规则','入门'],time:'08:32',art:'court',demoVideo:true,demoSlides:true,summary:['比赛可以是单打，也可以是双打。','发球通常采用对角线方向，发球必须越过非截击区。','非截击区（俗称厨房区）内不得凌空截击。','熟悉计分和轮换方式，再开始正式比赛。'],transcript:'这是模拟转写文本，仅用于展示原始文稿如何展开。\n\n大家好，今天来介绍匹克球的基础规则。首先认识球场结构，球网两边都设有非截击区。发球时站在底线后方，通常沿对角线发向对面。双打时双方要配合移动，并注意换发球时机。',terms:[['Non-volley zone','非截击区 / 厨房区'],['Serve','发球'],['Doubles','双打'],['Baseline','底线']],source:''},
-  {id:'pk2',order:2,title:'双打配合要点',en:'Doubles Strategy',lang:'en',topic:'匹克球',tags:['双打','技巧'],time:'10:15',art:'court',summary:['Communicate early and move with your partner.','Try to reach the non-volley zone line together.','Avoid leaving large gaps between you and your partner.'],transcript:'This is a sample transcript for UI demonstration. In doubles, teamwork and court positioning matter. Watch the ball, communicate clearly, and move as a pair.',terms:[['Partner','搭档'],['Court positioning','场上站位'],['Rally','多拍回合']],source:''},
-  {id:'pk3',order:3,title:'热身与拉伸',en:'Warm-up & Stretching',lang:'zh',topic:'匹克球',tags:['热身','训练'],time:'06:20',art:'warm',summary:['先进行轻快步行或慢跑，再做动态关节活动。','重点活动肩膀、髋部、脚踝等部位。','热身应循序渐进，避免一开始就进行高强度对抗。'],transcript:'模拟文稿：热身建议从简单的低强度活动开始，然后逐渐增加移动速度，并结合实际身体状况调整动作。',terms:[['Warm-up','热身'],['Dynamic stretching','动态拉伸'],['Shoulder rotation','肩部环绕']],source:''},
-  {id:'pk4',order:4,title:'正确发球入门',en:'How to Serve',lang:'en',topic:'匹克球',tags:['规则','技巧'],time:'07:48',art:'serve',summary:['Start behind the baseline.','Aim diagonally into the correct service court.','Focus on consistency before speed.'],transcript:'Sample transcript: Before serving, stand behind the baseline and check the score. Aim at the opposite service court and follow the applicable serving rules.',terms:[['Service court','发球区'],['Underhand serve','下手发球'],['Diagonal','对角线']],source:''},
-  {id:'pk5',order:5,title:'球员水平与等级',en:'Player Skill Levels',lang:'zh',topic:'匹克球',tags:['等级','入门'],time:'05:35',art:'level',summary:['不同平台或赛事可能采用不同的水平评定标准。','入门阶段优先掌握稳定发球、回球和基本位置感。','评估水平时应区分自我描述与官方评级。'],transcript:'模拟文稿：匹克球水平没有唯一通用的描述方法。建议参考实际赛事、俱乐部或评级体系，而不是依赖模糊的宣传。',terms:[['Beginner','初学者'],['Skill rating','技能评级'],['Consistency','稳定性']],source:''},
-  {id:'pk6',order:6,title:'常用英语术语',en:'Pickleball Vocabulary',lang:'en',topic:'匹克球',tags:['术语','入门'],time:'04:18',art:'terms',summary:['Learn the terms you will say most often on court.','Practice explaining rules in simple English.','Use short phrases rather than memorizing long paragraphs.'],transcript:'Sample transcript: The most useful words include serve, rally, court, net, baseline and kitchen. Speak clearly and demonstrate the movement.',terms:[['Kitchen','厨房区 / 非截击区'],['Net','球网'],['Rally','回合'],['Paddle','球拍']],source:''}
-];
+const SEED = [];
+/* 2026-11-15：内置示例资料（pk1–pk6）已按要求下线；老版本装过的机器在 boot 时自动清掉。 */
+const LEGACY_DEMO_IDS = ['pk1','pk2','pk3','pk4','pk5','pk6'];
 
 const state = {
   tab: 'home', detail: null, expanded: false, lang: 'all', tag: '全部', q: '',
   selected: [], items: [], media: {}, theme: 'light', language: 'system',
+  edit: false, picked: [], subMode: 'auto', fsVideo: false,
   scroll: { home:0, offline:0, share:0, settings:0 },
   videoUrl: null, slideUrl: null, slideHistory: false, slideId: null,
   dbOK: true, resumeNotified: new Set(), lastPosSaved: 0, wakeLock: null,
@@ -112,7 +109,7 @@ function notice(s) {
 }
 
 function brandHeader() {
-  return `<header class="appbar"><div class="brand-icon">${icon('presentation',24)}</div><div><div class="brand-name">随身讲解库</div><div class="brand-en">Pocket Presenter</div></div>${navigator.onLine ? '' : `<span class="netbadge">${esc(T('netOffline'))}</span>`}</header>`;
+  return `<header class="appbar"><div class="brand-icon">${icon('presentation',24)}</div><div><div class="brand-name">随身讲解库</div><div class="brand-en">Pocket Presenter</div></div><span class="appbar-spacer"></span>${state.tab === 'home' ? `<button class="editbtn" data-action="edit-toggle">${esc(state.edit ? T('done') : T('editList'))}</button>` : ''}${navigator.onLine ? '' : `<span class="netbadge">${esc(T('netOffline'))}</span>`}</header>`;
 }
 
 function art(x) {
@@ -133,7 +130,11 @@ function statusIcon(x) {
 
 function card(x) {
   const st = statusIcon(x);
-  return `<article class="item">${art(x)}<span class="st ${st.cls}" title="${esc(st.text)}" aria-label="${esc(st.text)}" role="img">${icon(st.name,13)}</span><div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div><button class="add-inline" data-action="share-toggle" data-id="${esc(x.id)}" aria-label="${esc(state.selected.includes(x.id) ? T('removeShare') : T('addShare'))}">${state.selected.includes(x.id) ? icon('check',17) : icon('plus',17)}</button><button class="item-hit" data-action="open" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
+  const picked = state.edit && state.picked.includes(x.id);
+  const right = state.edit
+    ? `<span class="pickbox ${picked ? 'on' : ''}">${picked ? icon('check',15) : ''}</span>`
+    : `<button class="add-inline" data-action="share-toggle" data-id="${esc(x.id)}" aria-label="${esc(state.selected.includes(x.id) ? T('removeShare') : T('addShare'))}">${state.selected.includes(x.id) ? icon('check',17) : icon('plus',17)}</button>`;
+  return `<article class="item${picked ? ' picked' : ''}">${art(x)}<span class="st ${st.cls}" title="${esc(st.text)}" aria-label="${esc(st.text)}" role="img">${icon(st.name,13)}</span><div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>${right}<button class="item-hit" data-action="${state.edit ? 'pick-item' : 'open'}" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
 }
 
 function library() {
@@ -146,7 +147,7 @@ function tagList() {
   return base.concat(extra);
 }
 function libraryResults(list) {
-  return `<div class="sectionbar"><strong>${esc(T('sectionTitle'))}</strong><small>${esc(T('found',{n:list.length}))}</small></div>${list.length ? `<div class="items">${list.map(card).join('')}</div>` : `<div class="empty">${icon('search',28)}<h3>${esc(T('emptyTitle'))}</h3>${esc(T('emptyText'))}<p><button class="pillbtn" data-action="reset">${esc(T('clearFilter'))}</button></p></div>`}<div class="note-box">${esc(T('demoNote'))}</div>`;
+  return `<div class="sectionbar"><strong>${esc(T('sectionTitle'))}</strong><small>${esc(T('found',{n:list.length}))}</small></div>${list.length ? `<div class="items">${list.map(card).join('')}</div>` : `<div class="empty">${icon('search',28)}<h3>${esc(T('emptyTitle'))}</h3>${esc(T('emptyText'))}<p><button class="pillbtn" data-action="reset">${esc(T('clearFilter'))}</button></p></div>`}`;
 }
 
 function bottom() {
@@ -163,7 +164,7 @@ function detail() {
   const summary = x.summary || [];
   const slideSub = m.slides ? (m.slidesRemote ? T('slidesRemote') : T('slidesSelf')) : x.demoSlides ? T('demoSlides') : T('slidesNotSub');
   const coverStyle = x.cover ? ` style="background:linear-gradient(#0b252299,#0b2522cc),url('${esc(x.cover)}') center/cover no-repeat"` : '';
-  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"${coverStyle}><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" style="flex:1" data-action="pick-video">${icon('download',16)}${esc(T('importVideo'))}</button><button class="pillbtn" style="flex:1" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',16)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}</p><div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div></main></div>`;
+  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"${coverStyle}><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" style="flex:1" data-action="pick-video">${icon('download',16)}${esc(T('importVideo'))}</button><button class="pillbtn" style="flex:1" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',16)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}</p>${subAvailable(x) ? `<div class="subbar"><button class="pillbtn" data-action="sub-open">${icon('film',15)}${esc(T('subLabel',{m:subLabelOf(effectiveSubMode(x))}))}</button></div>` : ''}<div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div><div class="content-card"><div class="card-body" style="padding-top:14px"><button class="pillbtn full danger" data-action="delete-item" data-id="${esc(x.id)}">${icon('trash',16)}${esc(T('deleteItem'))}</button></div></div></main></div>`;
 }
 
 function offline() {
@@ -189,12 +190,21 @@ function share() {
 function settings() {
   const dark = document.documentElement.dataset.theme === 'dark';
   const cached = all().filter(x => mediaOf(x.id).video || mediaOf(x.id).slides).length;
-  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:ENV.version || VERSION}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
+  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="sub-open"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(T('subDefault'))}</strong><small>${esc(subModeName(state.subMode))}</small></div><button class="head-btn right" data-action="sub-open" aria-label="${esc(T('subTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:String(ENV.version || VERSION).replace(/-debug$/,'')}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
+}
+
+function editbar() {
+  if (!state.edit || state.detail || state.tab !== 'home') return '';
+  const ids = filtered().map(x => x.id);
+  const n = state.picked.length;
+  const all = ids.length > 0 && ids.every(id => state.picked.includes(id));
+  return `<div class="editbar"><button class="pillbtn" data-action="pick-all">${esc(all ? T('unselectAll') : T('selectAll'))}</button><span class="pickcount">${esc(T('picked',{n}))}</span><button class="pillbtn danger" data-action="delete-picked" ${n ? '' : 'disabled'}>${icon('trash',16)}${esc(T('deletePicked'))}</button></div>`;
 }
 
 function render(keepScroll = true) {
   const body = state.detail ? detail() : state.tab === 'home' ? library() : state.tab === 'offline' ? offline() : state.tab === 'share' ? share() : settings();
-  $('#app').innerHTML = body + bottom();
+  $('#app').innerHTML = body + editbar() + bottom();
+  $('#app').classList.toggle('editing', state.edit && !state.detail && state.tab === 'home');
   updateUpdateBar();
   if (state.detail) {
     loadVideo(state.detail);
@@ -215,6 +225,7 @@ function saveScroll() {
 function goTab(tab) {
   saveScroll();
   cleanupVideo();
+  if (tab !== 'home') { state.edit = false; state.picked = []; }
   state.detail = null;
   state.expanded = false;
   state.tab = tab;
@@ -231,6 +242,7 @@ function openItem(id) {
   render();
 }
 function backToList() {
+  if (state.fsVideo) exitVideoFullscreen();
   cleanupVideo();
   state.detail = null;
   state.expanded = false;
@@ -291,7 +303,18 @@ async function loadVideo(id) {
   if (x.cover) v.poster = x.cover;
   v.setAttribute('aria-label', T('video'));
   host.innerHTML = '';
-  host.appendChild(v);
+  const wrap = document.createElement('div');
+  wrap.className = 'video-wrap';
+  v.setAttribute('controlsList', 'nofullscreen nodownload noremoteplayback');
+  wrap.appendChild(v);
+  const fsBtn = document.createElement('button');
+  fsBtn.className = 'fsbtn';
+  fsBtn.dataset.action = 'video-fs';
+  fsBtn.setAttribute('aria-label', T('slideFull'));
+  fsBtn.innerHTML = icon('expand', 17);
+  wrap.appendChild(fsBtn);
+  host.appendChild(wrap);
+  applySubs(v, x);
   v.addEventListener('loadedmetadata', () => {
     if (v.videoWidth && v.videoHeight) host.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
     const saved = posCache[id] || 0;
@@ -723,6 +746,139 @@ function fullSlides() {
   else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
+/* ---------- subtitles ---------- */
+function subAvailable(x) {
+  const s = x && x.subs;
+  return !!(s && ((Array.isArray(s.en) && s.en.length) || (Array.isArray(s.zh) && s.zh.length)));
+}
+function effectiveSubMode(x) {
+  let m = state.subMode || 'auto';
+  const s = (x && x.subs) || {};
+  const hasEn = Array.isArray(s.en) && s.en.length > 0;
+  const hasZh = Array.isArray(s.zh) && s.zh.length > 0;
+  if (m === 'auto') m = (x && x.lang === 'en') ? 'en' : 'zh';
+  if (m === 'en' && !hasEn) m = hasZh ? 'zh' : 'off';
+  if (m === 'zh' && !hasZh) m = hasEn ? 'en' : 'off';
+  if (m === 'both' && (!hasEn || !hasZh)) m = hasEn ? 'en' : (hasZh ? 'zh' : 'off');
+  return m;
+}
+function subLabelOf(m) {
+  return m === 'zh' ? T('subZh') : m === 'en' ? T('subEn') : m === 'both' ? T('subBoth') : T('subOff');
+}
+function subModeName(m) {
+  return m === 'auto' ? T('subAuto') : subLabelOf(m);
+}
+function applySubs(video, x) {
+  if (!video) return;
+  const wrap = video.parentElement || $('#video-host');
+  if (!wrap) return;
+  const old = wrap.querySelector('.sub-overlay');
+  if (old) old.remove();
+  if (!subAvailable(x)) return;
+  const mode = effectiveSubMode(x);
+  if (mode === 'off') return;
+  const s = x.subs;
+  const en = Array.isArray(s.en) ? s.en : [];
+  const zh = Array.isArray(s.zh) ? s.zh : [];
+  const cues = zh.length ? zh : en;  const box = document.createElement('div');
+  box.className = 'sub-overlay';
+  const l1 = document.createElement('div'); l1.className = 'sub-line en';
+  const l2 = document.createElement('div'); l2.className = 'sub-line zh';
+  box.append(l1, l2);
+  wrap.appendChild(box);
+  const showEn = (mode === 'en' || mode === 'both') && en.length > 0;
+  const showZh = (mode === 'zh' || mode === 'both') && zh.length > 0;
+  let iEn = -1, iZh = -1;
+  const update = () => {
+    const t = video.currentTime;
+    if (iEn < 0 || !en[iEn] || t < en[iEn][0] || t >= en[iEn][1]) {
+      iEn = -1;
+      for (let i = 0; i < en.length; i++) { if (t >= en[i][0] && t < en[i][1]) { iEn = i; break; } }
+    }
+    if (iZh < 0 || !zh[iZh] || t < zh[iZh][0] || t >= zh[iZh][1]) {
+      iZh = -1;
+      for (let i = 0; i < zh.length; i++) { if (t >= zh[i][0] && t < zh[i][1]) { iZh = i; break; } }
+    }
+    const enText = showEn && iEn >= 0 ? en[iEn][2] : '';
+    const zhText = showZh && iZh >= 0 ? zh[iZh][2] : '';
+    l1.textContent = enText; l2.textContent = zhText;
+    l1.style.display = enText ? 'block' : 'none';
+    l2.style.display = zhText ? 'block' : 'none';
+    box.style.bottom = state.fsVideo ? '92px' : '';
+  };
+  video.addEventListener('timeupdate', update);
+  video.addEventListener('seeked', update);
+  document.addEventListener('fullscreenchange', update);
+  update();
+}
+/* 自带全屏：把视频移进覆盖层，退出时放回原位。不依赖 WebView 的 Fullscreen API。 */
+function exitVideoFullscreen() {
+  const layer = $('#fs-layer');
+  const wrap = layer ? layer.querySelector('.video-wrap') : null;
+  const host = $('#video-host');
+  if (layer && wrap && host) host.appendChild(wrap);
+  if (layer) layer.remove();
+  if (wrap) {
+    wrap.style.cssText = '';
+    const v = wrap.querySelector('video');
+    if (v) { v.style.width = ''; v.style.height = ''; v.style.objectFit = ''; }
+    const box = wrap.querySelector('.sub-overlay');
+    if (box) box.style.bottom = '';
+    const fs = wrap.querySelector('.fsbtn');
+    if (fs) fs.style.cssText = '';
+  }
+  document.body.style.overflow = '';
+  state.fsVideo = false;
+  if (isNative) {
+    platform.setImmersive(false).catch(() => {});
+    platform.setOrientation('portrait').catch(() => {});
+  }
+}
+function enterVideoFullscreen() {
+  const wrap = document.querySelector('.video-wrap');
+  if (!wrap || state.fsVideo) return;
+  const layer = document.createElement('div');
+  layer.id = 'fs-layer';
+  layer.style.cssText = 'position:fixed;inset:0;z-index:1000;background:#000;display:grid;place-items:center';
+  layer.appendChild(wrap);
+  document.body.appendChild(layer);
+  wrap.style.cssText = 'position:relative;width:100vw;height:100vh;background:#000;display:grid;place-items:center';
+  const v = wrap.querySelector('video');
+  if (v) { v.style.width = '100%'; v.style.height = '100%'; v.style.objectFit = 'contain'; }
+  const box = wrap.querySelector('.sub-overlay');
+  if (box) box.style.bottom = '92px';
+  const fs = wrap.querySelector('.fsbtn');
+  if (fs) fs.style.cssText = 'position:absolute;right:16px;bottom:16px;z-index:6;width:42px;height:42px;border:0;border-radius:8px;background:#00000080;color:#fff;display:grid;place-items:center';
+  document.body.style.overflow = 'hidden';
+  state.fsVideo = true;
+  if (isNative) {
+    platform.setOrientation('landscape').catch(() => {});
+    platform.setImmersive(true).catch(() => {});
+  }
+}
+function toggleVideoFullscreen() {
+  if (state.fsVideo) exitVideoFullscreen(); else enterVideoFullscreen();
+}
+function openSubSheet() {
+  const opts = [['auto', T('subAuto')], ['zh', T('subZh')], ['en', T('subEn')], ['both', T('subBoth')], ['off', T('subOff')]];
+  const cur = state.subMode || 'auto';
+  overlay(T('subTitle'), `<div class="settings">${opts.map(([v, l]) => `<div class="setting" data-action="set-sub" data-val="${v}"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(l)}</strong><small>${v === cur ? '✓' : ''}</small></div></div>`).join('')}</div>`);
+}
+function setSubMode(val) {
+  state.subMode = val;
+  saveLocal('p070_submode', val);
+  closeOverlay();
+  if (state.detail) {
+    const v = $('#video-host video');
+    const x = find(state.detail);
+    if (v && x) applySubs(v, x);
+    const b = document.querySelector('[data-action="sub-open"]');
+    if (b && x) b.innerHTML = icon('film', 15) + esc(T('subLabel', { m: subLabelOf(effectiveSubMode(x)) }));
+  } else {
+    render();
+  }
+}
+
 /* ---------- import ---------- */
 function coverOf(x) {
   const raw = String((x && (x.cover || x.cover_url || x.poster)) || '').trim();
@@ -740,11 +896,19 @@ function normalizeItem(x, i) {
     return null;
   }).filter(t => t && t[0]);
   const rawId = String(x.id || `custom-${Date.now()}-${i}`).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 100);
+  const subsIn = (x.subs && typeof x.subs === 'object') ? x.subs : null;
+  const parseCues = arr => Array.isArray(arr) ? arr.slice(0, 1200).map(c => {
+    if (!Array.isArray(c) || c.length < 3) return null;
+    const s = Number(c[0]), e = Number(c[1]), t = String(c[2] || '').slice(0, 300).trim();
+    return (Number.isFinite(s) && Number.isFinite(e) && e > s && t) ? [s, e, t] : null;
+  }).filter(Boolean) : [];
+  const subs = subsIn ? { en: parseCues(subsIn.en), zh: parseCues(subsIn.zh) } : null;
   return {
     id: rawId, order: 100 + i, title: String(x.title).slice(0, 90), en: String(x.en || '').slice(0, 100),
     lang: (x.lang || x.language) === 'en' ? 'en' : 'zh', topic: String(x.topic || '未分类').slice(0, 30), tags,
     time: String(x.time || ''), art: x.art || 'court', summary, transcript: String(x.transcript || ''),
-    terms, source: String(x.source || x.source_url || '').trim(), cover: coverOf(x), demoVideo: false, demoSlides: false
+    terms, source: String(x.source || x.source_url || '').trim(), cover: coverOf(x), demoVideo: false, demoSlides: false,
+    subs: subs && (subs.en.length || subs.zh.length) ? subs : null
   };
 }
 async function applyImport(list, mode) {
@@ -903,6 +1067,65 @@ function removeCache(id) {
   });
 }
 
+/* 整条资料删除：卡片 + 本机视频/课件 + 分享清单引用一起清掉 */
+function deleteItemFlow(id) {
+  const x = find(id);
+  if (!x) return;
+  dialog(T('deleteItemQ'), esc(T('deleteItemBody')), [
+    { label: T('deleteItemYes'), cls: 'danger', fn: async () => {
+        try {
+          await db.deleteItem(id);
+          state.items = state.items.filter(it => it.id !== id);
+          delete state.media[id];
+          if (state.selected.includes(id)) {
+            state.selected = state.selected.filter(v => v !== id);
+            saveLocal('p070_selected', state.selected);
+          }
+          if (state.detail === id) { state.detail = null; state.expanded = false; }
+          render(); notice(T('deletedItem'));
+        } catch { notice(T('deleteFail')); }
+      } },
+    { label: T('cancel'), cls: 'ghost' }
+  ]);
+}
+
+/* 批量编辑：进入编辑态后点卡片多选，底部可全选/删除 */
+function toggleEdit() {
+  state.edit = !state.edit;
+  state.picked = [];
+  render();
+}
+function togglePick(id) {
+  const i = state.picked.indexOf(id);
+  if (i >= 0) state.picked.splice(i, 1); else state.picked.push(id);
+  render();
+}
+function pickAll() {
+  const ids = filtered().map(x => x.id);
+  const all = ids.length > 0 && ids.every(id => state.picked.includes(id));
+  state.picked = all ? [] : ids;
+  render();
+}
+function deletePicked() {
+  const ids = [...state.picked];
+  if (!ids.length) return;
+  dialog(T('deletePickedQ', { n: ids.length }), esc(T('deleteItemBody')), [
+    { label: T('deleteItemYes'), cls: 'danger', fn: async () => {
+        let ok = 0;
+        for (const id of ids) { try { await db.deleteItem(id); ok++; } catch {} }
+        state.items = state.items.filter(it => !ids.includes(it.id));
+        ids.forEach(id => { delete state.media[id]; });
+        if (ids.some(id => state.selected.includes(id))) {
+          state.selected = state.selected.filter(v => !ids.includes(v));
+          saveLocal('p070_selected', state.selected);
+        }
+        state.picked = []; state.edit = false; state.detail = null;
+        render(); notice(T('deletedPicked', { n: ok }));
+      } },
+    { label: T('cancel'), cls: 'ghost' }
+  ]);
+}
+
 /* ---------- boot & self-check ---------- */
 async function selfCheck() {
   let lost = 0;
@@ -927,13 +1150,17 @@ async function boot() {
   state.language = loadLocal('p070_language', 'system');
   state.selected = loadLocal('p070_selected', []);
   if (!Array.isArray(state.selected)) state.selected = [];
+  state.subMode = loadLocal('p070_submode', 'auto');
+  if (!['auto','zh','en','both','off'].includes(state.subMode)) state.subMode = 'auto';
   applyTheme();
 
   try {
     state.items = await db.allItems();
-    if (!state.items.length) {
-      await db.putItems(SEED);
-      state.items = SEED.slice();
+    // 内置示例资料已下线：老版本曾把 pk1–pk6 写入 IndexedDB，这里一次性清掉
+    const legacy = state.items.filter(it => LEGACY_DEMO_IDS.includes(it.id));
+    if (legacy.length) {
+      for (const it of legacy) { try { await db.deleteItem(it.id); } catch {} }
+      state.items = state.items.filter(it => !LEGACY_DEMO_IDS.includes(it.id));
     }
     state.items.sort((a,b) => (a.order ?? 999) - (b.order ?? 999));
     state.media = await db.allMedia();
@@ -1081,6 +1308,14 @@ function handleClick(e) {
     else window.open(u, '_blank', 'noopener,noreferrer');
   }
   else if (a === 'remove-cache') removeCache(id);
+  else if (a === 'delete-item') deleteItemFlow(id);
+  else if (a === 'edit-toggle') toggleEdit();
+  else if (a === 'pick-item') togglePick(id);
+  else if (a === 'pick-all') pickAll();
+  else if (a === 'delete-picked') deletePicked();
+  else if (a === 'sub-open') openSubSheet();
+  else if (a === 'set-sub') setSubMode(val);
+  else if (a === 'video-fs') toggleVideoFullscreen();
   else if (a === 'clear-cache') clearAllCache();
   else if (a === 'clear-share') clearShareConfirm();
   else if (a === 'copy-share') copyShare();
