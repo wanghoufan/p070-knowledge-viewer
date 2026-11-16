@@ -31,6 +31,12 @@
 | `09-share-list-en.png` | 分享清单：1 条已选、1 个真实来源链接、预览只含 http(s) |
 | `10-android-sharesheet.png` | 系统分享面板（`com.android.intentresolver/ChooserActivity`）实际拉起 |
 | `11-rotated-landscape.png` | 系统横屏（838×358）：页面随方向重排，字幕仍在画面内 |
+| `12-filter-restored.png` | 组合筛选清除后回到 4 条（筛选链路的恢复态） |
+| `13-empty-state.png` | 搜索无结果：0 条 + 「没有找到资料」+ 清除筛选 |
+| `14-duplicate-dialog.png` | 重复 ID 四选项对话框（合成清单触发，仅验证 UI 分支） |
+| `15-saf-picker.png` | 系统文件选择器（DocumentsUI，可从「＋导入」拉起并搜索文件） |
+| `17-saf-dup-dialog.png` | 真实 SAF 导入同一清单后出现的重复对话框（2 条 id 重复） |
+| `18-after-delete-reimport.png` | 删单条缓存 → 重导 → 删除测试条目后的资料库（4 条完好） |
 
 ## 机器可读结果
 
@@ -56,11 +62,36 @@
 }
 ```
 
+## 第二批（同包 1.0.18）：筛选 / SAF 导入 / 删缓存重导
+
+| 项 | 实测 |
+|---|---|
+| 组合筛选（AC-05） | 全部 4 条 → 仅英文 2 条 → 英文+规则 1 条 → 关键词 1 条；结果数与卡片数同步（`找到 n 条`） |
+| 空态与恢复（AC-05） | `zzzz` → 0 条 + 「没有找到资料」+ 清除筛选；点清除回到 4 条，语言/标签/关键字全复位 |
+| SAF 真实导入（AC-12） | 通过「设置 → 添加学习资料 → 选择资料清单」拉起 DocumentsUI，搜索并选中 `p070-extra-manifest.json`，弹出「2 条 id 重复」四选项 |
+| 重复处理（AC-12） | 选「跳过重复项」→ 提示已导入 0 条，资料与 4 个媒体文件零变化；选「取消本次导入」同样无副作用 |
+| 新增清单（AC-12） | 选 `p070-basics-manifest.json` → 新增 1 条，标题/英文名/标签（含「缺字幕」）/8 条总结/3 个术语/来源自动带出；文稿字段为空（清单本身无文稿） |
+| 删缓存 + 重导（AC-14） | 已缓存页删「网球 NTRP」→ 行消失、私有目录文件删除、详情变「未导入本地视频」；经 SAF 重导 `p070-tennis-ntrp.mp4` → 18,010,415 字节一致、状态恢复「已缓存可播放」、时长 146.47s、进度 109.6s 恢复 |
+| 导入中取消（AC-11 分支） | 选中 474MB 文件，进度 65% 时点「取消」→ 无 `.partial`、无新文件、状态仍「未导入」、已有 4 个媒体文件字节不变 |
+| 单条删除一致性（AC-14） | 删测试条目「Pickleball Basics」→ 卡片与文件一起消失，其余 4 条与视频完好 |
+
+```json
+{
+  "filters": {"all": 4, "enOnly": 2, "enPlusRule": 1, "keyword": 1, "empty": 0, "restored": 4, "countsMatch": true},
+  "saf": {"picker": "com.google.android.documentsui/PickActivity", "selected": "p070-extra-manifest.json", "dupDialog": {"duplicates": 2, "options": 4}, "skipNoChange": true, "cancelNoChange": true},
+  "manifestAdd": {"added": 1, "autoFields": ["title", "en", "tags", "summary", "terms", "source"], "transcriptChars": 0},
+  "cache": {"removed": "ntrp-tennis-rating", "fileGone": true, "reimportBytes": 18010415, "bytesMatch": true, "statusAfter": "已缓存可播放", "duration": 146.47, "resumedAt": 109.6},
+  "cancelImport": {"file": "p070-tennis-beginner.mp4", "bytes": 496972057, "cancelAtPercent": 65, "partialFile": false, "statusAfter": "未导入本地视频", "existingFilesIntact": true},
+  "deleteItem": {"deleted": "pickleball-basics", "cardsAfter": 4, "mediaIntact": true}
+}
+```
+
 ## 不能判（继续 NOT_RUN，别把本轮当全量验收）
 
-- SAF 真实导入的取消/断电/容量不足异常路径，以及重复 ID 四选项：本轮未重跑。
+- HTML 课件导入与「MP4/HTML 关联」中的 HTML 分支：本轮只走 MP4/JSON。
+- 导入断电、容量不足两类异常：未构造。
 - 分享「实际发送到聊天工具」与「无可用目标时仍能复制」：只验证到拉起系统分享面板。
-- 系统语言不受支持时回落 `zh-CN`：本机系统语言为中文，未构造不支持语言场景。
-- HTML 课件（`SlideActivity` 隔离、异常课件拦截）与封面/术语等页面级 AC：未复跑。
+- 系统语言不受支持时回落 `zh-CN`：CDP `Emulation.setLocaleOverride` 在该 WebView 未生效（`navigator.language` 仍 zh-CN），不改系统语言无法构造；代码路径为不支持语言 → `zh`。
+- 清空全部缓存：未做（要重导 4 个视频，代价与风险高）。
 - OPPO 第二品牌、飞行模式/5G 冷启动、release 签名包与正式分发：未做。
 - 进度恢复口径：允许 seek 后立即强杀，恢复到最后 seek 点（本轮修复项）；不承诺恢复到最后 1 秒内的播放位置。
