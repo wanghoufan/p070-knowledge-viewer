@@ -5,7 +5,7 @@
 - 包：`com.p070.pocketpresenter.debug` · versionName `1.0.18-debug` · versionCode 19
 - APK：4,273,359 字节 · SHA-256 `BFFBC89395C360F1E30FD0DAABD014B4FB2B5F468564390FBA9F183F6928B75F`
 - 装机校验：`pm path` 拉回 base.apk 的 SHA-256 与构建产物一致（同上），即手机跑的就是本目录证据对应的包。
-- 源码：`87266c6` 之上本轮修复（播放进度 seek 落盘、系统深浅色跟随），未另行提交前以工作区为准。
+- 源码：`3532391`（含本轮两处修复）；APK 由此工作树构建。
 - 安装方式：`adb install -r`（覆盖安装，未卸载、未清数据）；升级路径 `1.0.16(17) → 1.0.17(18) → 1.0.18(19)` 数据全保留。
 - 抓取方式：WebView DevTools（`adb forward` + CDP `Runtime.evaluate`）读取真实 DOM，截图用 `adb shell screencap`；改动状态的原值均已记录并复原。
 
