@@ -43,7 +43,7 @@ const LEGACY_DEMO_IDS = ['pk1','pk2','pk3','pk4','pk5','pk6'];
 const state = {
   tab: 'home', detail: null, expanded: false, lang: 'all', tag: '全部', q: '',
   selected: [], items: [], media: {}, theme: 'light', language: 'system',
-  edit: false, picked: [], subMode: 'auto', fsVideo: false,
+  edit: false, picked: [], subMode: 'auto', fsVideo: false, subSize: 1, subPos: 0.2,
   scroll: { home:0, offline:0, share:0, settings:0 },
   videoUrl: null, slideUrl: null, slideHistory: false, slideId: null,
   dbOK: true, resumeNotified: new Set(), lastPosSaved: 0, wakeLock: null,
@@ -134,7 +134,7 @@ function card(x) {
   const right = state.edit
     ? `<span class="pickbox ${picked ? 'on' : ''}">${picked ? icon('check',15) : ''}</span>`
     : `<button class="add-inline" data-action="share-toggle" data-id="${esc(x.id)}" aria-label="${esc(state.selected.includes(x.id) ? T('removeShare') : T('addShare'))}">${state.selected.includes(x.id) ? icon('check',17) : icon('plus',17)}</button>`;
-  return `<article class="item${picked ? ' picked' : ''}">${art(x)}<span class="st ${st.cls}" title="${esc(st.text)}" aria-label="${esc(st.text)}" role="img">${icon(st.name,13)}</span><div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div></div>${right}<button class="item-hit" data-action="${state.edit ? 'pick-item' : 'open'}" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
+  return `<article class="item${picked ? ' picked' : ''}">${art(x)}<span class="st ${st.cls}" title="${esc(st.text)}" aria-label="${esc(st.text)}" role="img">${icon(st.name,13)}</span><div class="item-main"><div class="item-title">${esc(x.title)}</div><div class="item-en">${esc(x.en || '')}</div><div class="item-badges">${(x.tags || []).slice(0,2).map(t => `<span class="tag">${esc(t)}</span>`).join('')}${subAvailable(x) ? `<span class="tag sub">✓ ${esc(T('badgeSub'))}</span>` : (x.lang === 'en' ? `<span class="tag miss">${esc(T('badgeNoSub'))}</span>` : '')}</div></div>${right}<button class="item-hit" data-action="${state.edit ? 'pick-item' : 'open'}" data-id="${esc(x.id)}" aria-label="${esc(x.title)}"></button></article>`;
 }
 
 function library() {
@@ -338,17 +338,15 @@ async function loadVideo(id) {
 
 /* Android back: deck/detail -> list -> tab home -> (double press) exit. */
 function handleBack() {
+  if (state.fsVideo) { exitVideoFullscreen(); return true; }
   if ($('#slide-modal')) { closeSlides(); return true; }
-  if ($('#dialog-mask')) {
-    const mask = $('#dialog-mask');
-    mask.remove();
-    return true;
-  }
+  if ($('#dialog-mask')) { $('#dialog-mask').remove(); return true; }
   if ($('#sheet-overlay')) { closeOverlay(); return true; }
   if (state.detail) { backToList(); return true; }
-  if (state.tab !== 'home') { goTab('home'); return true; }
   return false;
 }
+/* 安卓返回键钩子必须在模块加载时就挂好，不能依赖异步 boot */
+window.__p070Back = handleBack;
 
 function startVideoImport() {
   if (!state.detail) return;
@@ -756,7 +754,7 @@ function effectiveSubMode(x) {
   const s = (x && x.subs) || {};
   const hasEn = Array.isArray(s.en) && s.en.length > 0;
   const hasZh = Array.isArray(s.zh) && s.zh.length > 0;
-  if (m === 'auto') m = (x && x.lang === 'en') ? 'en' : 'zh';
+  if (m === 'auto') m = (x && x.lang === 'en') ? 'en' : 'off'; // 中文视频默认不挂字幕
   if (m === 'en' && !hasEn) m = hasZh ? 'zh' : 'off';
   if (m === 'zh' && !hasZh) m = hasEn ? 'en' : 'off';
   if (m === 'both' && (!hasEn || !hasZh)) m = hasEn ? 'en' : (hasZh ? 'zh' : 'off');
@@ -804,14 +802,48 @@ function applySubs(video, x) {
     l1.textContent = enText; l2.textContent = zhText;
     l1.style.display = enText ? 'block' : 'none';
     l2.style.display = zhText ? 'block' : 'none';
-    box.style.bottom = state.fsVideo ? '92px' : '';
   };
   video.addEventListener('timeupdate', update);
   video.addEventListener('seeked', update);
-  document.addEventListener('fullscreenchange', update);
+  const layout = () => {
+    const h = wrap.clientHeight || 1;
+    const base = state.fsVideo ? 19 : 13;
+    const size = state.subSize || 1;
+    l1.style.fontSize = Math.round(base * size) + 'px';
+    l2.style.fontSize = Math.round(base * 1.08 * size) + 'px';
+    const frac = Number.isFinite(state.subPos) ? state.subPos : 0.2;
+    box.style.bottom = Math.round(frac * h) + 'px';
+  };
+  currentSubLayout = layout;
+  layout();
+  let drag = null;
+  box.addEventListener('pointerdown', e => {
+    if (!e.isPrimary) return;
+    drag = { y: e.clientY, startFrac: Number.isFinite(state.subPos) ? state.subPos : 0.2, h: wrap.clientHeight || 1 };
+    try { box.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault(); e.stopPropagation();
+  });
+  box.addEventListener('pointermove', e => {
+    if (!drag) return;
+    let frac = drag.startFrac + (drag.y - e.clientY) / drag.h;
+    frac = Math.max(0.02, Math.min(0.6, frac));
+    state.subPos = Math.round(frac * 1000) / 1000;
+    box.style.bottom = Math.round(frac * drag.h) + 'px';
+    e.preventDefault(); e.stopPropagation();
+  });
+  const finishDrag = e => {
+    if (!drag) return;
+    drag = null;
+    saveLocal('p070_subpos', state.subPos);
+    e.stopPropagation();
+  };
+  box.addEventListener('pointerup', finishDrag);
+  box.addEventListener('pointercancel', finishDrag);
   update();
 }
 /* 自带全屏：把视频移进覆盖层，退出时放回原位。不依赖 WebView 的 Fullscreen API。 */
+let currentSubLayout = null;
+function relayoutSubsSoon() { [60, 400, 900].forEach(t => setTimeout(() => { if (currentSubLayout) currentSubLayout(); }, t)); }
 function exitVideoFullscreen() {
   const layer = $('#fs-layer');
   const wrap = layer ? layer.querySelector('.video-wrap') : null;
@@ -831,8 +863,9 @@ function exitVideoFullscreen() {
   state.fsVideo = false;
   if (isNative) {
     platform.setImmersive(false).catch(() => {});
-    platform.setOrientation('portrait').catch(() => {});
+    platform.setOrientation('auto').catch(() => {});
   }
+  relayoutSubsSoon();
 }
 function enterVideoFullscreen() {
   const wrap = document.querySelector('.video-wrap');
@@ -855,6 +888,7 @@ function enterVideoFullscreen() {
     platform.setOrientation('landscape').catch(() => {});
     platform.setImmersive(true).catch(() => {});
   }
+  relayoutSubsSoon();
 }
 function toggleVideoFullscreen() {
   if (state.fsVideo) exitVideoFullscreen(); else enterVideoFullscreen();
@@ -862,7 +896,13 @@ function toggleVideoFullscreen() {
 function openSubSheet() {
   const opts = [['auto', T('subAuto')], ['zh', T('subZh')], ['en', T('subEn')], ['both', T('subBoth')], ['off', T('subOff')]];
   const cur = state.subMode || 'auto';
-  overlay(T('subTitle'), `<div class="settings">${opts.map(([v, l]) => `<div class="setting" data-action="set-sub" data-val="${v}"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(l)}</strong><small>${v === cur ? '✓' : ''}</small></div></div>`).join('')}</div>`);
+  const sizes = [[0.85, T('subSizeS')], [1, T('subSizeM')], [1.25, T('subSizeL')], [1.5, T('subSizeXL')]];
+  const curSize = Number(state.subSize) || 1;
+  overlay(T('subTitle'), `<div class="settings">${opts.map(([v, l]) => `<div class="setting" data-action="set-sub" data-val="${v}"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(l)}</strong><small>${v === cur ? '✓' : ''}</small></div></div>`).join('')}</div>
+  <div class="sectionbar" style="margin-top:16px"><strong>${esc(T('subSize'))}</strong></div>
+  <div class="settings">${sizes.map(([v, l]) => `<div class="setting" data-action="set-subsize" data-val="${v}"><span class="lefticon">${icon('edit',22)}</span><div><strong>${esc(l)}</strong><small>${v === curSize ? '✓' : ''}</small></div></div>`).join('')}</div>
+  <button class="pillbtn full" data-action="sub-pos-reset" style="margin-top:4px">${icon('expand',15)}${esc(T('subPosReset'))}</button>
+  <div class="note-box" style="margin-top:10px">${esc(T('subDragHint'))}</div>`);
 }
 function setSubMode(val) {
   state.subMode = val;
@@ -1152,6 +1192,10 @@ async function boot() {
   if (!Array.isArray(state.selected)) state.selected = [];
   state.subMode = loadLocal('p070_submode', 'auto');
   if (!['auto','zh','en','both','off'].includes(state.subMode)) state.subMode = 'auto';
+  state.subSize = Number(loadLocal('p070_subsize', 1));
+  if (![0.85,1,1.25,1.5].includes(state.subSize)) state.subSize = 1;
+  state.subPos = Number(loadLocal('p070_subpos', 0.2));
+  if (!Number.isFinite(state.subPos) || state.subPos < 0.02 || state.subPos > 0.6) state.subPos = 0.2;
   applyTheme();
 
   try {
@@ -1172,6 +1216,7 @@ async function boot() {
   }
   render(false);
   if (isNative) {
+    platform.setOrientation('auto').catch(() => {});
     try { ENV = await platform.info(); } catch {}
     platform.onBack(handleBack);
     window.__p070Back = handleBack;
@@ -1180,6 +1225,7 @@ async function boot() {
     registerSW();
   }
   bindEnvironment();
+  window.addEventListener('resize', relayoutSubsSoon);
   // Test-only seeding hook, limited to localhost; never visible in the UI.
   const seedParams = new URLSearchParams(location.search);
   if (!isNative && seedParams.get('p070seed') && /^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
@@ -1315,6 +1361,8 @@ function handleClick(e) {
   else if (a === 'delete-picked') deletePicked();
   else if (a === 'sub-open') openSubSheet();
   else if (a === 'set-sub') setSubMode(val);
+  else if (a === 'set-subsize') { state.subSize = Number(val) || 1; saveLocal('p070_subsize', state.subSize); closeOverlay(); if (currentSubLayout) currentSubLayout(); }
+  else if (a === 'sub-pos-reset') { state.subPos = 0.2; saveLocal('p070_subpos', state.subPos); closeOverlay(); if (currentSubLayout) currentSubLayout(); }
   else if (a === 'video-fs') toggleVideoFullscreen();
   else if (a === 'clear-cache') clearAllCache();
   else if (a === 'clear-share') clearShareConfirm();
