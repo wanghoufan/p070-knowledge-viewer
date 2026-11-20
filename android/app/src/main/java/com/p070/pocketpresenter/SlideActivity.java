@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
+import android.view.WindowManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -54,6 +55,23 @@ public class SlideActivity extends Activity {
     private boolean immersive;
     private boolean pageLoaded;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable deckVideoPoll = new Runnable() {
+        @Override
+        public void run() {
+            if (web == null) return;
+            web.evaluateJavascript(
+                "(function(){var v=document.querySelector('video');return !!(v&&!v.paused&&!v.ended&&!v.error);})()",
+                value -> {
+                    if (getWindow() == null) return;
+                    if ("true".equals(value)) {
+                        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    } else {
+                        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                    }
+                });
+            handler.postDelayed(this, 1000);
+        }
+    };
 
     private LinearLayout topBar;
     private LinearLayout bottomBar;
@@ -171,6 +189,8 @@ public class SlideActivity extends Activity {
             public void onPageFinished(WebView view, String url) {
                 pageLoaded = true;
                 handler.postDelayed(() -> refreshPageCount(), 350);
+                handler.removeCallbacks(deckVideoPoll);
+                handler.post(deckVideoPoll);
             }
 
             @Override
@@ -299,6 +319,7 @@ public class SlideActivity extends Activity {
     @Override
     protected void onDestroy() {
         handler.removeCallbacksAndMessages(null);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (web != null) {
             web.stopLoading();
             web.loadUrl("about:blank");
