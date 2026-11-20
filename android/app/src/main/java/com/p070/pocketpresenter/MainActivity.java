@@ -1,7 +1,10 @@
 package com.p070.pocketpresenter;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.WebView;
@@ -35,6 +38,12 @@ public class MainActivity extends BridgeActivity {
         // Edge-to-edge on Android 15+. The approved UI reads the safe-area insets in CSS
         // (env(safe-area-inset-*)), so the WebView must own the full window.
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        // The lock-screen playback card (with its play/pause buttons) needs this on Android 13+.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 9001);
+        }
 
         WebView webView = getBridge().getWebView();
         webView.setBackgroundColor(Color.parseColor("#f7f9f7"));
@@ -80,6 +89,35 @@ public class MainActivity extends BridgeActivity {
         c.setAppearanceLightNavigationBars(!dark);
         View content = activity.findViewById(android.R.id.content);
         if (content != null) content.setBackgroundColor(Color.parseColor(dark ? "#101713" : "#f7f9f7"));
+    }
+
+    /** Screen off: WebView will drop its media pipeline, so start the native audio mirror. */
+    @Override
+    public void onStop() {
+        super.onStop();
+        android.os.PowerManager pm = (android.os.PowerManager) getSystemService(POWER_SERVICE);
+        boolean screenOff = pm != null && !pm.isInteractive();
+        boolean fresh = System.currentTimeMillis() - P070NativePlugin.curSyncedAt < 4000;
+        if (screenOff && fresh && P070NativePlugin.curPlaying && P070NativePlugin.curVideoPath != null) {
+            PlaybackService.startMirror(this, P070NativePlugin.curVideoPath,
+                P070NativePlugin.curPosMs, P070NativePlugin.curTitle, P070NativePlugin.curText);
+        }
+    }
+
+    /** Back on screen: stop the mirror and let the page resume from the native position. */
+    @Override
+    public void onResume() {
+        super.onResume();
+        WebView webView = getBridge() == null ? null : getBridge().getWebView();
+        long pos = PlaybackService.positionMs();
+        if (pos < 0 || webView == null) return;
+        // Read the state before stopping: the user may have paused from the notification
+        // or a headset button while the screen was off.
+        boolean wasPlaying = PlaybackService.mirroredPlaying();
+        PlaybackService.stopMirror(this);
+        String js = "(function(){try{window.__p070OnResume&&window.__p070OnResume(" + pos + ","
+            + wasPlaying + ");}catch(e){}})()";
+        webView.post(() -> webView.evaluateJavascript(js, null));
     }
 
     @Override

@@ -11,6 +11,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.StatFs;
 import android.provider.OpenableColumns;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 
 import androidx.activity.result.ActivityResult;
@@ -385,6 +386,115 @@ public class P070NativePlugin extends Plugin {
             }
         });
         call.resolve(new JSObject().put("ok", true));
+    }
+
+    /**
+     * Called on video play/pause. While active, the window stays on and a foreground
+     * service holds a partial wake lock, so locking the screen does not stop playback.
+     */
+    @PluginMethod
+    public void setPlaybackActive(final PluginCall call) {
+        final boolean active = Boolean.TRUE.equals(call.getBoolean("active", false));
+        final String title = call.getString("title", "");
+        final String text = call.getString("text", "");
+        getActivity().runOnUiThread(() -> {
+            if (active) {
+                getActivity().getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Intent i = new Intent(getContext(), PlaybackService.class);
+                i.setAction(PlaybackService.ACTION_START);
+                i.putExtra(PlaybackService.EXTRA_TITLE, title);
+                i.putExtra(PlaybackService.EXTRA_TEXT, text);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    getContext().startForegroundService(i);
+                } else {
+                    getContext().startService(i);
+                }
+            } else {
+                getActivity().getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                Intent i = new Intent(getContext(), PlaybackService.class);
+                i.setAction(PlaybackService.ACTION_STOP);
+                getContext().stopService(i);
+            }
+        });
+        call.resolve(new JSObject().put("ok", true));
+    }
+
+    /* Last-known playback facts the host activity needs when the screen turns off.
+       JS reports these while playing because a hidden WebView stops running timers. */
+    static volatile boolean curPlaying = false;
+    static volatile String curVideoPath = null;
+    static volatile int curPosMs = 0;
+    static volatile String curTitle = "";
+    static volatile String curText = "";
+    static volatile long curSyncedAt = 0;
+
+    /** Called while playing (about once a second) so the host can hand audio over on lock. */
+    @PluginMethod
+    public void syncPlayback(final PluginCall call) {
+        String id = call.getString("id", "");
+        final int pos = call.getInt("positionMs", 0);
+        File video = null;
+        try {
+            video = MediaFiles.findVideo(getContext(), id);
+        } catch (Exception ignored) {
+        }
+        boolean playing = Boolean.TRUE.equals(call.getBoolean("playing", false));
+        curPlaying = playing;
+        if (playing) curSyncedAt = System.currentTimeMillis();
+        curPosMs = pos;
+        if (video != null) curVideoPath = video.getAbsolutePath();
+        curTitle = call.getString("title", "");
+        curText = call.getString("text", "");
+        call.resolve(new JSObject().put("ok", true));
+    }
+
+    /**
+     * Hands the playing video's audio to the native player, because WebView drops its own
+     * media pipeline once the screen turns off. Called when the page goes hidden.
+     */
+    @PluginMethod
+    public void mirrorStart(final PluginCall call) {
+        final String id = call.getString("id", "");
+        final Integer positionMs = call.getInt("positionMs", 0);
+        final String title = call.getString("title", "");
+        final String text = call.getString("text", "");
+        File video = null;
+        try {
+            video = MediaFiles.findVideo(getContext(), id);
+        } catch (Exception ignored) {
+        }
+        android.util.Log.i("P070Playback", "mirrorStart id=" + id + " video=" + (video == null ? "null" : video.getAbsolutePath()));
+        if (video == null || !video.isFile()) {
+            call.resolve(new JSObject().put("ok", false).put("reason", "no-video"));
+            return;
+        }
+        final File file = video;
+        getActivity().runOnUiThread(() -> {
+            Intent i = new Intent(getContext(), PlaybackService.class);
+            i.setAction(PlaybackService.ACTION_START);
+            i.putExtra(PlaybackService.EXTRA_TITLE, title);
+            i.putExtra(PlaybackService.EXTRA_TEXT, text);
+            i.putExtra(PlaybackService.EXTRA_PATH, file.getAbsolutePath());
+            i.putExtra(PlaybackService.EXTRA_POSITION, positionMs == null ? 0 : positionMs);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getContext().startForegroundService(i);
+            } else {
+                getContext().startService(i);
+            }
+        });
+        call.resolve(new JSObject().put("ok", true));
+    }
+
+    /** Stops the native audio mirror and reports where it got to, so the page can seek. */
+    @PluginMethod
+    public void mirrorStop(final PluginCall call) {
+        final long position = PlaybackService.positionMs();
+        getActivity().runOnUiThread(() -> {
+            Intent i = new Intent(getContext(), PlaybackService.class);
+            i.setAction(PlaybackService.ACTION_STOP);
+            getContext().stopService(i);
+        });
+        call.resolve(new JSObject().put("ok", true).put("positionMs", position));
     }
 
     /** Hides/shows the status and navigation bars for video fullscreen. */

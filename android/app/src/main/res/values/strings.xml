@@ -5,4 +5,9 @@
     <string name="package_name">com.p070.pocketpresenter</string>
     <string name="custom_url_scheme">com.p070.pocketpresenter</string>
     <string name="press_again_to_exit">再按一次退出</string>
+    <string name="playback_notification">视频播放中 · 锁屏后继续</string>
+    <string name="playback_channel">后台视频播放</string>
+    <string name="playback_play">播放</string>
+    <string name="playback_pause">暂停</string>
+    <string name="playback_stop">停止</string>
 </resources>

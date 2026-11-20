@@ -5,7 +5,13 @@
       P070 is a fully offline presenter. No INTERNET permission is declared on purpose:
       the OS itself guarantees that neither the app nor an imported deck can reach the
       network. Every asset ships inside the APK; imported media is read from app storage.
+      WAKE_LOCK + mediaPlayback FGS only keep local video audible when the screen locks.
     -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Android 13+: without this the playback notification (and its buttons) never appears. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -33,6 +39,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Holds a partial wake lock so local video keeps playing with the screen off. -->
+        <service
+            android:name=".PlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <!-- Isolated, bridge-free viewer for imported single-file HTML decks. -->
         <activity

@@ -99,6 +99,33 @@ export const platform = {
   async setOrientation(mode) { return call('setOrientation', { mode: mode || 'auto' }); },
   async setImmersive(on) { return call('setImmersive', { on: !!on }); },
 
+  /** Keep the screen on and hold a partial wake lock while a local video plays. */
+  async setPlaybackActive(active, title, text) {
+    if (!isNative) return null;
+    try { return await call('setPlaybackActive', { active: !!active, title: title || '', text: text || '' }); }
+    catch { return null; }
+  },
+
+  /** Report the playing spot so the native host can take over audio when the screen locks. */
+  async syncPlayback(playing, id, positionMs, title, text) {
+    if (!isNative) return null;
+    try { return await call('syncPlayback', { playing: !!playing, id: id || '', positionMs: Math.max(0, Math.round(positionMs || 0)), title: title || '', text: text || '' }); }
+    catch { return null; }
+  },
+
+  /** Hand the playing video's audio to the native player (screen-off survival). */
+  async mirrorStart(id, positionMs, title, text) {
+    if (!isNative) return null;
+    try { return await call('mirrorStart', { id, positionMs: Math.max(0, Math.round(positionMs || 0)), title: title || '', text: text || '' }); }
+    catch { return null; }
+  },
+
+  /** Stop the native mirror; resolves { positionMs } so the page can seek back. */
+  async mirrorStop() {
+    if (!isNative) return null;
+    try { return await call('mirrorStop'); } catch { return null; }
+  },
+
   async shareText(text, title) { return call('shareText', { text, title: title || '' }); },
 
   async copyText(text) { return call('copyText', { text }); },

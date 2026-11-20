@@ -3,7 +3,7 @@ import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
 import { platform, isNative } from './platform.js';
 
-const VERSION = '1.2.5';
+const VERSION = '1.3.1';
 /* Real build facts read from the installed APK (never a dev hash on screen). */
 let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
@@ -25,6 +25,8 @@ const ICONS = {
   presentation:'<rect x="3" y="3" width="18" height="14" rx="2"/><path d="M12 17v4m-5 0h10M9 8l6 2-6 2z"/>',
   copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
   check:'<path d="m5 12 5 5L20 7"/>',
+  repeat:'<path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
+  flag:'<path d="M5 21V4m0 0 7 2 7-2v9l-7 2-7-2"/>',
   film:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 8h4m-4 8h4m10-8h4m-4 8h4"/>',
   folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3z"/>',
   trash:'<path d="M4 7h16M10 4h4m-8 3 1 14h10l1-14M10 11v6m4-6v6"/>',
@@ -47,7 +49,8 @@ const state = {
   scroll: { home:0, offline:0, share:0, settings:0 },
   videoUrl: null, slideUrl: null, slideHistory: false, slideId: null,
   dbOK: true, resumeNotified: new Set(), lastPosSaved: 0, wakeLock: null,
-  installPrompt: null
+  playbackWanted: false, installPrompt: null, mirrorActive: false,
+  loopA: null, loopB: null
 };
 
 const T = makeT(() => resolveLang(state.language));
@@ -164,7 +167,7 @@ function detail() {
   const summary = x.summary || [];
   const slideSub = m.slides ? (m.slidesRemote ? T('slidesRemote') : T('slidesSelf')) : x.demoSlides ? T('demoSlides') : T('slidesNotSub');
   const coverStyle = x.cover ? ` style="background:linear-gradient(#0b252299,#0b2522cc),url('${esc(x.cover)}') center/cover no-repeat"` : '';
-  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"${coverStyle}><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" style="flex:1" data-action="pick-video">${icon('download',16)}${esc(T('importVideo'))}</button><button class="pillbtn" style="flex:1" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',16)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}</p>${subAvailable(x) ? `<div class="subbar"><button class="pillbtn" data-action="sub-open">${icon('film',15)}${esc(T('subLabel',{m:subLabelOf(effectiveSubMode(x))}))}</button></div>` : ''}<div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div><div class="content-card"><div class="card-body" style="padding-top:14px"><button class="pillbtn full danger" data-action="delete-item" data-id="${esc(x.id)}">${icon('trash',16)}${esc(T('deleteItem'))}</button></div></div></main></div>`;
+  return `<div class="screen"><div class="backhead"><button class="back" data-action="close-detail" aria-label="${esc(T('back'))}">${icon('arrow',21)}</button><span class="title">${esc(x.title)}</span><span style="flex:1"></span><button class="head-btn" data-action="theme" aria-label="${esc(T('darkMode'))}">${icon(document.documentElement.dataset.theme === 'dark' ? 'sun' : 'moon',18)}</button></div><main class="content"><div class="detail-title">${esc(x.title)}</div><div class="detail-meta">${esc(x.en || '')} · ${x.lang === 'en' ? T('english') : T('chinese')} · ${(x.tags || []).join(' / ')}</div><div id="video-host" class="detail-video"${coverStyle}><div class="video-empty"><span class="big">▷</span><strong>${x.demoVideo ? T('demoClip') : T('notImported')}</strong><small>${x.demoVideo ? T('demoNote') : T('videoHint')}</small></div></div><div class="quick-actions"><button class="pillbtn" data-action="pick-video">${icon('download',15)}${esc(T('importVideo'))}</button><button class="pillbtn ${state.loopA != null ? 'on' : ''}" data-action="loop-start">${icon('flag',15)}<span class="lbl">${esc(state.loopA != null ? T('loopCancelStart') : T('loopStart'))}</span></button><button class="pillbtn ${state.loopB != null ? 'on' : ''}" data-action="loop-end">${icon('repeat',15)}<span class="lbl">${esc(state.loopB != null ? T('loopCancel') : T('loopEnd'))}</span></button><button class="pillbtn ${state.selected.includes(x.id) ? 'on' : ''}" data-action="share-toggle" data-id="${esc(x.id)}">${icon(state.selected.includes(x.id) ? 'check' : 'plus',15)}${esc(state.selected.includes(x.id) ? T('addedShare') : T('addToShare'))}</button></div><p class="muted-note" id="video-status">${esc(status)}</p>${subAvailable(x) ? `<div class="subbar"><button class="pillbtn" data-action="sub-open">${icon('film',15)}${esc(T('subLabel',{m:subLabelOf(effectiveSubMode(x))}))}</button></div>` : ''}<div class="content-card"><div class="card-head"><h3>${x.lang === 'en' ? 'Key Points · Summary' : T('keyPoints')}</h3><span style="font-size:14px;color:var(--green-deep)">${x.lang === 'en' ? T('english') : T('chinese')}</span></div><div class="card-body"><ul class="summary-list">${summary.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div></div><div class="content-card"><button class="accordion" data-action="transcript"><span>${esc(T('transcript'))}</span><span class="hint" id="transcript-indicator">${state.expanded ? T('collapse') : T('expand')}</span></button><div id="transcript-container">${state.expanded ? `<div class="acc-body">${esc(x.transcript)}</div>` : ''}</div></div><div class="content-card"><div class="card-head"><h3>${esc(T('terms'))}</h3><span style="font-size:14px;color:var(--muted)">${esc(T('termsCount',{n:(x.terms || []).length}))}</span></div><div class="card-body"><div class="term-grid">${(x.terms || []).map(a => `<div class="term-card"><strong>${esc(a[0])}</strong><small>${esc(a[1])}</small></div>`).join('')}</div></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('slides'))}</h3></div><div class="card-body"><div class="slides-entry"><div class="iconbox">${icon('presentation',26)}</div><div style="flex:1;min-width:0"><strong>${esc(hasSlides ? (x.demoSlides && !m.slides ? T('demoSlides') : T('slidesReady')) : T('slidesNot'))}</strong><small>${esc(slideSub)}</small></div><button data-action="slides-open">${esc(hasSlides ? T('openSlides') : T('importSlides'))}</button></div><button class="pillbtn full" style="margin-top:8px;min-height:44px" data-action="pick-html">${icon('plus',15)}${esc(T('replaceSlides'))}</button></div></div><div class="content-card"><div class="card-head"><h3>${esc(T('source'))}</h3></div><div class="card-body"><div class="row" style="gap:8px"><span style="font-size:14px;color:var(--muted);word-break:break-all">${esc(liveSrc(x) || T('sourceEmpty'))}</span><button class="pillbtn" style="flex-shrink:0" data-action="source-edit">${icon('edit',15)}${esc(T('edit'))}</button></div>${liveSrc(x) ? `<button class="pillbtn full" style="margin-top:8px" data-action="source-open">${icon('external',15)}${esc(T('openSource'))}</button>` : ''}</div></div><div class="content-card"><div class="card-body" style="padding-top:14px"><button class="pillbtn full danger" data-action="delete-item" data-id="${esc(x.id)}">${icon('trash',16)}${esc(T('deleteItem'))}</button></div></div></main></div>`;
 }
 
 function offline() {
@@ -256,7 +259,119 @@ function formatBytes(n) {
   return Math.max(1, Math.round(n / 1024)) + ' KB';
 }
 
+/* Screen lock must not stop local video. Native side keeps the window awake and holds
+   a partial wake lock; JS only reports the user's play/pause intent. */
+function syncPlaybackLock(active, id) {
+  state.playbackWanted = !!active;
+  const x = id ? find(id) : null;
+  platform.setPlaybackActive(!!active, x ? x.title || '' : '', T('playbackNote')).catch(() => {});
+}
+
+/* A–B loop for the section the user is studying right now.
+   Tap "循环开始" to drop point A, "循环结束" to drop B and start looping; tapping the
+   same button again clears the loop and lets playback run on past B. */
+function currentVideo() { return document.querySelector('video'); }
+
+function loopStart() {
+  const v = currentVideo();
+  if (!v) { notice(T('loopNoVideo')); return; }
+  // Already has a start point: tapping again clears it (and any running loop) instead of
+  // silently moving the point, so the same button always gets you out.
+  if (state.loopA != null) {
+    const wasLooping = state.loopB != null;
+    state.loopA = null;
+    state.loopB = null;
+    notice(T(wasLooping ? 'loopCleared' : 'loopStartCleared'));
+    refreshLoopButtons();
+    return;
+  }
+  state.loopA = v.currentTime || 0;
+  state.loopB = null;
+  notice(T('loopStartSet', { t: fmtClock(state.loopA) }));
+  refreshLoopButtons();
+}
+
+function loopEnd() {
+  const v = currentVideo();
+  if (!v) { notice(T('loopNoVideo')); return; }
+  if (state.loopB != null) {
+    state.loopA = null;
+    state.loopB = null;
+    notice(T('loopCleared'));
+    refreshLoopButtons();
+    return;
+  }
+  if (state.loopA == null) { notice(T('loopNeedStart')); return; }
+  const b = v.currentTime || 0;
+  if (b <= state.loopA + 0.3) { notice(T('loopTooShort')); return; }
+  state.loopB = b;
+  notice(T('loopOn', { a: fmtClock(state.loopA), b: fmtClock(state.loopB) }));
+  refreshLoopButtons();
+  const v2 = currentVideo();
+  if (v2 && v2.paused) v2.play().catch(() => {});
+}
+
+/* Repainting only the two buttons keeps the <video> element alive, so setting a loop
+   point never interrupts playback (a full render would recreate the player). */
+function refreshLoopButtons() {
+  const a = document.querySelector('[data-action="loop-start"]');
+  const b = document.querySelector('[data-action="loop-end"]');
+  if (a) {
+    a.classList.toggle('on', state.loopA != null);
+    const lbl = a.querySelector('.lbl');
+    if (lbl) lbl.textContent = state.loopA != null ? T('loopCancelStart') : T('loopStart');
+  }
+  if (b) {
+    b.classList.toggle('on', state.loopB != null);
+    const label = b.querySelector('.lbl');
+    if (label) label.textContent = state.loopB != null ? T('loopCancel') : T('loopEnd');
+  }
+}
+
+function fmtClock(sec) {
+  const s = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m + ':' + String(r).padStart(2, '0');
+}
+
+/* Keeps the native host informed of the play spot; it mirrors audio itself once the
+   screen locks, because a hidden WebView cannot keep its own media pipeline alive. */
+function feedNative(v, id, playing) {
+  if (!v) return;
+  const x = find(id);
+  platform.syncPlayback(playing, id, Math.round((v.currentTime || 0) * 1000),
+    x ? x.title || '' : '', T('playbackNote')).catch(() => {});
+}
+
+/* Native side calls this when the screen comes back, with the mirrored position and
+   whether the native player was still running (the user may have paused it from the
+   notification or with a headset button while the screen was off). */
+window.__p070OnResume = function (ms, playing) {
+  const v = document.querySelector('video');
+  if (!v || !state.detail) return;
+  v.muted = false;
+  if (ms > 0 && (!v.duration || ms < v.duration * 1000 - 1200)) {
+    try { v.currentTime = ms / 1000; } catch {}
+  }
+  if (playing === false) {
+    // Native was paused: mirror that state instead of resuming behind the user's back.
+    state.playbackWanted = false;
+    try { v.pause(); } catch {}
+    syncPlaybackLock(false);
+    feedNative(v, state.detail, false);
+    return;
+  }
+  if (state.playbackWanted) {
+    syncPlaybackLock(true, state.detail);
+    v.play().catch(() => { state.playbackWanted = false; syncPlaybackLock(false); });
+  }
+};
+
 function cleanupVideo() {
+  syncPlaybackLock(false);
+  state.loopA = null;
+  state.loopB = null;
   const v = document.querySelector('video');
   if (v) {
     try { v.pause(); } catch {}
@@ -326,12 +441,28 @@ async function loadVideo(id) {
   v.addEventListener('timeupdate', () => {
     const now = Date.now();
     if (now - state.lastPosSaved > 2500) { state.lastPosSaved = now; savePosition(id, v.currentTime); }
+    if (state.loopA != null && state.loopB != null && v.currentTime >= state.loopB) {
+      try { v.currentTime = state.loopA; } catch {}
+      feedNative(v, id, !v.paused);
+      return;
+    }
+    if (!v.paused && now - (v.__fedAt || 0) > 900) { v.__fedAt = now; feedNative(v, id, true); }
   });
-  v.addEventListener('pause', () => savePosition(id, v.currentTime));
+  v.addEventListener('play', () => { syncPlaybackLock(true, id); feedNative(v, id, true); });
+  v.addEventListener('playing', () => feedNative(v, id, true));
+  v.addEventListener('pause', () => {
+    savePosition(id, v.currentTime);
+    feedNative(v, id, false);
+    // Screen off can pause the WebView media element. Keep the wake lock in that case
+    // so unlocking can restore playback instead of leaving a dead notification.
+    if (document.visibilityState !== 'hidden' || v.ended) syncPlaybackLock(false);
+  });
+  v.addEventListener('ended', () => syncPlaybackLock(false));
   /* Seek while paused has no pause event; without this the last position can be lost
      because the throttled timeupdate already wrote an earlier seek target. */
   v.addEventListener('seeked', () => savePosition(id, v.currentTime));
   v.addEventListener('error', () => {
+    syncPlaybackLock(false);
     const st = $('#video-status');
     if (st) st.textContent = T('lostVideo') + '。' + T('videoHint');
   });
@@ -1267,8 +1398,20 @@ function bindEnvironment() {
     if (document.visibilityState === 'hidden') {
       const v = document.querySelector('video');
       if (v && state.detail) savePosition(state.detail, v.currentTime);
+      /* A hidden WebView stops running timers, so the native host takes over audio at lock
+         time via PlaybackService; the page only keeps the native side fed (syncPlayback). */
     } else {
       checkUpdate();
+      const resume = () => {
+        const v2 = document.querySelector('video');
+        if (!v2) return;
+        v2.muted = false;
+        if (state.playbackWanted && state.detail && v2.paused && !v2.ended && !v2.error) {
+          syncPlaybackLock(true, state.detail);
+          v2.play().catch(() => syncPlaybackLock(false));
+        }
+      };
+      resume();
     }
   });
   window.addEventListener('popstate', () => {
@@ -1347,6 +1490,8 @@ function handleClick(e) {
   else if (a === 'overlay-close') closeOverlay();
   else if (a === 'pick-json') startManifestImport();
   else if (a === 'download-json') downloadExample();
+  else if (a === 'loop-start') loopStart();
+  else if (a === 'loop-end') loopEnd();
   else if (a === 'pick-video') startVideoImport();
   else if (a === 'pick-html') startSlidesImport();
   else if (a === 'slides-open') openSlides();
