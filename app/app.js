@@ -452,7 +452,7 @@ async function loadVideo(id) {
   v.addEventListener('playing', () => feedNative(v, id, true));
   v.addEventListener('pause', () => {
     savePosition(id, v.currentTime);
-    feedNative(v, id, false);
+    if (document.visibilityState !== 'hidden') feedNative(v, id, false);
     // Screen off can pause the WebView media element. Keep the wake lock in that case
     // so unlocking can restore playback instead of leaving a dead notification.
     if (document.visibilityState !== 'hidden' || v.ended) syncPlaybackLock(false);

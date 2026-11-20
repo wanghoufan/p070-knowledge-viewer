@@ -439,7 +439,13 @@ public class P070NativePlugin extends Plugin {
         } catch (Exception ignored) {
         }
         boolean playing = Boolean.TRUE.equals(call.getBoolean("playing", false));
-        curPlaying = playing;
+        // With the screen off the WebView tears its player down and reports a pause; that is
+        // not a user action, so keep the last "playing" state for the screen-off handover.
+        boolean screenOn = true;
+        android.os.PowerManager pm =
+            (android.os.PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        if (pm != null) screenOn = pm.isInteractive();
+        if (playing || screenOn) curPlaying = playing;
         if (playing) curSyncedAt = System.currentTimeMillis();
         curPosMs = pos;
         if (video != null) curVideoPath = video.getAbsolutePath();

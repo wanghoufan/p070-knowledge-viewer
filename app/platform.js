@@ -135,7 +135,10 @@ export const platform = {
   /** Android hardware/gesture back. handler() returns true when it consumed the event. */
   onBack(handler) {
     if (!isNative || !P || typeof P.addListener !== 'function') return;
-    P.addListener('backButton', () => { handler(); }).catch(() => {});
+    // Some Capacitor builds return a plain value here instead of a promise; calling .catch
+    // blindly threw "P.addListener(...).catch is not a function" and killed the boot chain.
+    const sub = P.addListener('backButton', () => { handler(); });
+    if (sub && typeof sub.catch === 'function') sub.catch(() => {});
   }
 };
 
