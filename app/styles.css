@@ -149,6 +149,10 @@ body{font-size:19px;line-height:1.55}
    16/9 stays as the placeholder ratio until metadata arrives. */
 .detail-video{max-height:70dvh}
 .detail-video video{max-height:70dvh}
+/* 安卓 WebView 会忽略 controlsList 的 nofullscreen，原生 ⛶ 会把视频拖进系统全屏视图
+   （强制横屏、脱离我们的字幕/循环层），必须直接藏掉这个键 */
+video::-webkit-media-controls-fullscreen-button{display:none!important}
+video::-webkit-media-controls-enclosure{max-height:100%}
 
 /* Card density: the cover sets the height, the text column is trimmed to match it,
    and the cache state becomes a symbol on the cover instead of a text row. */

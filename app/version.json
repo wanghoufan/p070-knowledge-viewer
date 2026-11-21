@@ -1,8 +1,8 @@
 {
   "name": "随身讲解库",
   "name_en": "Pocket Presenter",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "build": "2026-11-21",
   "baseline": "PRODUCT_PLAN_V1.1",
-  "notes": "标签三行分组（系列/系列内/跨课程）+ 设置内标签管理"
+  "notes": "竖屏视频：详情页按视频比例收窄居中；全屏按视频方向进竖/横屏；隐藏原生全屏键"
 }

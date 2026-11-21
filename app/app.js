@@ -3,7 +3,7 @@ import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
 import { platform, isNative } from './platform.js';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 /* Real build facts read from the installed APK (never a dev hash on screen). */
 let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
@@ -597,7 +597,18 @@ async function loadVideo(id) {
   host.appendChild(wrap);
   applySubs(v, x);
   v.addEventListener('loadedmetadata', () => {
-    if (v.videoWidth && v.videoHeight) host.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
+    if (v.videoWidth && v.videoHeight) {
+      host.style.aspectRatio = `${v.videoWidth} / ${v.videoHeight}`;
+      if (v.videoHeight > v.videoWidth) {
+        // 竖屏：块高不超过 70dvh，宽度按视频比例收窄并水平居中，
+        // 否则 16:9 外框里 letterbox，看着像画面没摆正
+        host.style.width = `min(100%, calc(70dvh * ${(v.videoWidth / v.videoHeight).toFixed(4)}))`;
+        host.style.marginInline = 'auto';
+      } else {
+        host.style.width = '';
+        host.style.marginInline = '';
+      }
+    }
     const saved = posCache[id] || 0;
     if (saved > 3 && saved < (v.duration || Infinity) * 0.95) {
       try { v.currentTime = saved; } catch {}
@@ -1187,7 +1198,10 @@ function enterVideoFullscreen() {
   document.body.style.overflow = 'hidden';
   state.fsVideo = true;
   if (isNative) {
-    platform.setOrientation('landscape').catch(() => {});
+    // 竖屏视频就进竖屏全屏，别强行横屏；方向由视频本身决定
+    const v0 = wrap.querySelector('video');
+    const portrait = !!(v0 && v0.videoHeight > v0.videoWidth);
+    platform.setOrientation(portrait ? 'portrait' : 'landscape').catch(() => {});
     platform.setImmersive(true).catch(() => {});
   }
   relayoutSubsSoon();
