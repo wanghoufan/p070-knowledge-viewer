@@ -36,3 +36,15 @@
 ## 5. 回滚
 
 如需回到 V0.3 首页：`git revert` 本次合并提交中的 `app/app.js` 相关段落，或从 `ed8b2be:app/app.js` 取回 `brandHeader/library/libraryResults/card/statusOf`。V0.3 原型文件 `docs/design/prototype/P070-Pocket-Presenter-V0.3-APPROVED.html` 保持不变，不受影响。
+
+## 6. 2026-11-21 增量：标签三行分组 + 设置内标签管理（1.4.0）
+
+| 项 | 变更前 | 变更后 |
+|---|---|---|
+| 首页筛选区 | 单行横滑，9 个遗留匹克球标签 + 全部 topic/tags 去重（网球内容约 45+ 个，要横滑 8 屏） | 三行级联，**不显示组名、不加容器**：行1 系列课程、行2 系列内标签（模块/性质）、行3 跨课程技术 |
+| 行2/行3 内容 | 无分组概念 | 选中系列后只显示该系列在库的标签；未选系列时为并集 |
+| 标签数据 | 由 items 现算的字符串数组，没有编辑落点 | 分组表存 `localStorage.p070_tags`（`course/within/shared`），不新增 IndexedDB store，避免版本迁移 |
+| 标签管理入口 | 无 | 设置 → 标签管理：新建、改名、换组、删除；改名/删除回写 items 的 `topic`/`tags`；系列下仍有资料时禁止删除该系列 |
+| 底栏 | `bottom:max(10px,--sab)` 把整条栏抬离底边，下方露出滚动卡片 | `bottom:0` 贴边，`max(10px,--sab)` 放进自身 `padding-bottom`，总高 = 58px + 该值 |
+
+AC 影响：AC-21 / AC-28 的资料库首页截图基线更新为本版（1.4.0）。

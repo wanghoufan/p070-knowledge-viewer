@@ -74,6 +74,17 @@ const ZH = {
   localLost:'有 {n} 条本地副本已丢失，请重新导入', resumed:'已从上次位置继续', saved:'已保存', deleted:'已删除',
   fileBad:'文件格式不支持', tooBig:'文件超过 {n} MB，请拆分或压缩后再导入',
   dbFail:'本地资料库暂时不可用，请重新打开应用再试。',
+  tagGroupCourse:'系列课程', tagGroupWithin:'系列内标签', tagGroupShared:'跨课程技术',
+  tagManage:'标签管理', tagManageSub:'{n} 个标签 · 分组、改名、删除',
+  tagManageNote:'点任意标签可改名、换组或删除；改动会同步到资料本身。',
+  tagGroupNote:'三组对应首页的三行：系列课程一行，系列内标签一行，跨课程技术一行。首页不显示组名。',
+  tagNew:'新建标签', tagEmpty:'该组还没有标签', tagNamePrompt:'输入标签名称',
+  tagRename:'重命名', tagMove:'换组', tagDelete:'删除',
+  tagMeta:'{n} 条资料使用', tagCourseMeta:'该系列下 {n} 条资料',
+  tagDeleteQ:'删除标签「{t}」？', tagDeleteBody:'会同时从 {n} 条资料上移除这个标签，资料本身保留。', tagDeleteBody0:'这个标签还没有被任何资料使用。',
+  tagDeleted:'已删除标签「{t}」', tagRenamed:'已改名为「{t}」', tagMoved:'已移到「{g}」', tagAdded:'已新建标签「{t}」',
+  tagDup:'同名标签已存在', tagTextEmpty:'名称不能为空',
+  tagCourseBusy:'该系列下还有 {n} 条资料，先改这些资料的归属再删除',
   confirm:'确认', close:'关闭', done:'完成', ok:'好'
 };
 
@@ -151,6 +162,17 @@ const EN = {
   localLost:'{n} local copies are missing; import them again', resumed:'Resumed from where you stopped', saved:'Saved', deleted:'Deleted',
   fileBad:'Unsupported file type', tooBig:'File is over {n} MB; split or compress it first',
   dbFail:'The local library is unavailable. Reopen the app and try again.',
+  tagGroupCourse:'Series', tagGroupWithin:'Series tags', tagGroupShared:'Shared technique',
+  tagManage:'Tag management', tagManageSub:'{n} tags · group, rename, delete',
+  tagManageNote:'Tap a tag to rename it, move it to another group, or delete it. Changes apply to the items too.',
+  tagGroupNote:'The three groups are the three rows on the home screen: series, series tags, shared technique. Group names never show on home.',
+  tagNew:'New tag', tagEmpty:'No tags in this group yet', tagNamePrompt:'Tag name',
+  tagRename:'Rename', tagMove:'Move group', tagDelete:'Delete',
+  tagMeta:'Used by {n} items', tagCourseMeta:'{n} items in this series',
+  tagDeleteQ:'Delete tag "{t}"?', tagDeleteBody:'It is also removed from {n} items. The items themselves stay.', tagDeleteBody0:'No item uses this tag yet.',
+  tagDeleted:'Tag "{t}" deleted', tagRenamed:'Renamed to "{t}"', tagMoved:'Moved to "{g}"', tagAdded:'Tag "{t}" created',
+  tagDup:'A tag with that name already exists', tagTextEmpty:'Name cannot be empty',
+  tagCourseBusy:'{n} items still belong to this series. Reassign them first.',
   confirm:'Confirm', close:'Close', done:'Done', ok:'OK'
 };
 

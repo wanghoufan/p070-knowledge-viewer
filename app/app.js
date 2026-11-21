@@ -3,7 +3,7 @@ import { decodeHtml, scanSelfContained, hardenHtml } from './slides.js';
 import { makeT, resolveLang, LANGUAGE_LABELS } from './i18n.js';
 import { platform, isNative } from './platform.js';
 
-const VERSION = '1.3.1';
+const VERSION = '1.4.0';
 /* Real build facts read from the installed APK (never a dev hash on screen). */
 let ENV = { version: '', webView: '', android: '' };
 const $ = (s, r) => (r || document).querySelector(s);
@@ -43,7 +43,7 @@ const SEED = [];
 const LEGACY_DEMO_IDS = ['pk1','pk2','pk3','pk4','pk5','pk6'];
 
 const state = {
-  tab: 'home', detail: null, expanded: false, lang: 'all', tag: '全部', q: '',
+  tab: 'home', detail: null, expanded: false, lang: 'all', course: '全部', tag: '全部', q: '',
   selected: [], items: [], media: {}, theme: 'light', language: 'system',
   edit: false, picked: [], subMode: 'auto', fsVideo: false, subSize: 1, subPos: 0.2,
   scroll: { home:0, offline:0, share:0, settings:0 },
@@ -96,11 +96,154 @@ function find(id) { return state.items.find(x => x.id === id); }
 function liveSrc(x) { return (x && x.source) || ''; }
 function filtered() {
   return all().filter(x => (state.lang === 'all' || x.lang === state.lang)
+    && (state.course === '全部' || x.topic === state.course)
     && (state.tag === '全部' || x.tags.includes(state.tag) || x.topic === state.tag)
     && (!state.q || [x.title, x.en, (x.summary || []).join(' '), x.transcript, (x.tags || []).join(' '), (x.terms || []).flat().join(' ')].join(' ').toLowerCase().includes(state.q.toLowerCase())));
 }
 function mediaOf(id) { return state.media[id] || {}; }
 function isCached(x) { return !!(x && mediaOf(x.id).video); }
+
+/* ---------- 标签分组表 ----------
+   以前标签是从 items 里现算的一串字符串，没有落点可以编辑，所以设置里必然找不到入口。
+   现在存成一张分组表：course=系列课程（取自 topic）、within=系列内标签（模块/性质）、
+   shared=跨课程技术。存 localStorage，不动 IndexedDB 版本，老机器不用迁移。 */
+const TAG_GROUPS = ['course', 'within', 'shared'];
+const TAG_KEY = 'p070_tags';
+let tagSchema = { groups: { course: [], within: [], shared: [] } };
+
+function tagGroupName(gid) {
+  return gid === 'course' ? T('tagGroupCourse') : gid === 'within' ? T('tagGroupWithin') : T('tagGroupShared');
+}
+function allTagsInData() {
+  return Array.from(new Set(all().flatMap(x => [x.topic, ...(x.tags || [])]).filter(Boolean)));
+}
+function saveTagSchema() { saveLocal(TAG_KEY, tagSchema); }
+function deriveTagSchema() {
+  const courses = Array.from(new Set(all().map(x => x.topic).filter(Boolean)));
+  // 导入时约定了 tags[0] 是模块维度，其余归到跨课程技术
+  const within = Array.from(new Set(all().map(x => (x.tags || [])[0]).filter(Boolean))).filter(t => !courses.includes(t));
+  const shared = allTagsInData().filter(t => !courses.includes(t) && !within.includes(t));
+  return { groups: { course: courses, within, shared } };
+}
+function loadTagSchema() {
+  const raw = loadLocal(TAG_KEY, null);
+  const valid = raw && raw.groups && TAG_GROUPS.every(g => Array.isArray(raw.groups[g]));
+  tagSchema = valid ? raw : deriveTagSchema();
+  // 新导入的标签自动并入 shared，否则首页看不见、设置里也管不到
+  const known = new Set(TAG_GROUPS.flatMap(g => tagSchema.groups[g]));
+  const fresh = allTagsInData().filter(t => !known.has(t));
+  if (fresh.length) tagSchema.groups.shared.push(...fresh);
+  saveTagSchema();
+}
+function tagCount(t) { return all().filter(x => x.topic === t || (x.tags || []).includes(t)).length; }
+
+function openTagSheet() {
+  closeOverlay();
+  const body = TAG_GROUPS.map(gid => {
+    const tags = tagSchema.groups[gid] || [];
+    return `<div class="sectionbar" style="margin-top:14px"><strong>${esc(tagGroupName(gid))}</strong><small>${esc(T('items', { n: tags.length }))}</small></div>
+      <div class="tagmanage">${tags.length ? tags.map(t => `<button class="tagbtn" data-action="tag-edit" data-g="${gid}" data-val="${esc(t)}">${esc(t)}</button>`).join('') : `<span class="muted-note">${esc(T('tagEmpty'))}</span>`}</div>
+      <button class="pillbtn full" style="margin-top:9px" data-action="tag-add" data-g="${gid}">${icon('plus',15)}${esc(T('tagNew'))}</button>`;
+  }).join('');
+  overlay(T('tagManage'), `<p class="subline">${esc(T('tagManageNote'))}</p>${body}<div class="note-box">${esc(T('tagGroupNote'))}</div>`);
+}
+
+function tagMenu(gid, name) {
+  const n = tagCount(name);
+  dialog(name, esc(gid === 'course' ? T('tagCourseMeta', { n }) : T('tagMeta', { n })), [
+    { label: T('tagRename'), cls: 'primary', fn: () => askTagName(gid, name, 'rename') },
+    { label: T('tagMove'), fn: () => moveTagMenu(gid, name) },
+    { label: T('tagDelete'), cls: 'danger', fn: () => deleteTagFlow(gid, name) },
+    { label: T('cancel'), cls: 'ghost' }
+  ]);
+}
+
+let pendingTag = null;
+function askTagName(gid, from, mode) {
+  closeOverlay();
+  pendingTag = { gid, from, mode };
+  overlay(mode === 'rename' ? T('tagRename') : T('tagNew'),
+    `<input class="text-input" id="tag-name" maxlength="15" autocomplete="off" value="${esc(from || '')}" placeholder="${esc(T('tagNamePrompt'))}"><button class="pillbtn green full" style="margin-top:12px" data-action="tag-name-save">${esc(T('save'))}</button>`);
+  setTimeout(() => { const el = $('#tag-name'); if (el) { el.focus(); el.select(); } }, 60);
+}
+
+async function commitTagName(raw) {
+  const p = pendingTag;
+  if (!p) return;
+  const name = String(raw || '').trim().slice(0, 15);
+  if (!name) { notice(T('tagTextEmpty')); return; }
+  pendingTag = null;
+  if (p.mode === 'add') await addTag(p.gid, name);
+  else await renameTag(p.gid, p.from, name);
+  openTagSheet();
+}
+
+async function addTag(gid, name) {
+  if (TAG_GROUPS.some(g => (tagSchema.groups[g] || []).includes(name))) { notice(T('tagDup')); return; }
+  tagSchema.groups[gid].push(name);
+  saveTagSchema(); render(); notice(T('tagAdded', { t: name }));
+}
+
+async function renameTag(gid, from, to) {
+  if (to === from) return;
+  if (TAG_GROUPS.some(g => (tagSchema.groups[g] || []).includes(to))) { notice(T('tagDup')); return; }
+  const arr = tagSchema.groups[gid] || [];
+  const i = arr.indexOf(from);
+  if (i < 0) return;
+  arr[i] = to;
+  const changed = [];
+  for (const x of state.items) {
+    let hit = false;
+    if (x.topic === from) { x.topic = to; hit = true; }
+    if (Array.isArray(x.tags) && x.tags.includes(from)) { x.tags = x.tags.map(t => (t === from ? to : t)); hit = true; }
+    if (hit) changed.push(x);
+  }
+  for (const x of changed) { try { await db.putItem(x); } catch {} }
+  if (state.course === from) state.course = to;
+  if (state.tag === from) state.tag = to;
+  saveTagSchema(); render(); notice(T('tagRenamed', { t: to }));
+}
+
+function moveTagMenu(gid, name) {
+  closeOverlay();
+  const others = TAG_GROUPS.filter(g => g !== gid);
+  overlay(T('tagMove'), `<p class="subline">${esc(name)}</p><div class="settings">${others.map(g => `<div class="setting" data-action="tag-move-to" data-g="${g}" data-from="${gid}" data-val="${esc(name)}"><span class="lefticon">${icon('folder',20)}</span><div><strong>${esc(tagGroupName(g))}</strong><small>${esc(T('items', { n: (tagSchema.groups[g] || []).length }))}</small></div><button class="head-btn right" data-action="tag-move-to" data-g="${g}" data-from="${gid}" data-val="${esc(name)}" aria-label="${esc(tagGroupName(g))}">${icon('chevron',18)}</button></div>`).join('')}</div>`);
+}
+
+async function moveTag(from, to, name) {
+  const arr = tagSchema.groups[from] || [];
+  const i = arr.indexOf(name);
+  if (i < 0) return;
+  if ((tagSchema.groups[to] || []).includes(name)) { notice(T('tagDup')); return; }
+  arr.splice(i, 1);
+  tagSchema.groups[to].push(name);
+  saveTagSchema(); render(); openTagSheet(); notice(T('tagMoved', { g: tagGroupName(to) }));
+}
+
+function deleteTagFlow(gid, name) {
+  const n = tagCount(name);
+  if (gid === 'course' && n) { notice(T('tagCourseBusy', { n })); return; }
+  dialog(T('tagDeleteQ', { t: name }), esc(n ? T('tagDeleteBody', { n }) : T('tagDeleteBody0')), [
+    { label: T('tagDelete'), cls: 'danger', fn: () => removeTag(gid, name) },
+    { label: T('cancel'), cls: 'ghost' }
+  ]);
+}
+
+async function removeTag(gid, name) {
+  const arr = tagSchema.groups[gid] || [];
+  const i = arr.indexOf(name);
+  if (i < 0) return;
+  arr.splice(i, 1);
+  for (const x of state.items) {
+    if (Array.isArray(x.tags) && x.tags.includes(name)) {
+      x.tags = x.tags.filter(t => t !== name);
+      try { await db.putItem(x); } catch {}
+    }
+  }
+  if (state.course === name) state.course = '全部';
+  if (state.tag === name) state.tag = '全部';
+  saveTagSchema(); render(); openTagSheet(); notice(T('tagDeleted', { t: name }));
+}
 
 function notice(s) {
   const el = $('#toast');
@@ -142,12 +285,34 @@ function card(x) {
 
 function library() {
   const list = filtered();
-  return `${brandHeader()}<main class="content screen"><label class="search">${icon('search',20)}<input id="search-input" placeholder="${esc(T('search'))}" value="${esc(state.q)}" autocomplete="off" aria-label="${esc(T('search'))}"></label><div class="seg">${[['all',T('all')],['zh',T('zh')],['en',T('en')]].map(([key,text]) => `<button class="${state.lang === key ? 'active' : ''}" data-action="language" data-val="${key}">${text}</button>`).join('')}</div><div class="tagrow">${tagList().map(tag => `<button class="tagbtn ${state.tag === tag ? 'active' : ''}" data-action="tag" data-val="${esc(tag)}">${esc(tag)}</button>`).join('')}</div><div id="result-area">${libraryResults(list)}</div></main>`;
+  return `${brandHeader()}<main class="content screen"><label class="search">${icon('search',20)}<input id="search-input" placeholder="${esc(T('search'))}" value="${esc(state.q)}" autocomplete="off" aria-label="${esc(T('search'))}"></label><div class="seg">${[['all',T('all')],['zh',T('zh')],['en',T('en')]].map(([key,text]) => `<button class="${state.lang === key ? 'active' : ''}" data-action="language" data-val="${key}">${text}</button>`).join('')}</div><div class="tagrows">${tagRows()}</div><div id="result-area">${libraryResults(list)}</div></main>`;
 }
-function tagList() {
-  const base = ['全部','匹克球','入门','规则','热身','等级','术语','双打','技巧'];
-  const extra = Array.from(new Set(all().map(x => x.topic).filter(t => t && !base.includes(t))));
-  return base.concat(extra);
+/* 标签分三层：系列课程 / 系列内标签 / 跨课程技术。首页只画成三行，不显示组名、不加容器，
+   免得筛选区又变成一块要读的版块。 */
+function tagRows() {
+  const has = (t, pool) => pool.some(x => x.topic === t || (x.tags || []).includes(t));
+  const pool = state.course === '全部' ? all() : all().filter(x => x.topic === state.course);
+  const courses = (tagSchema.groups.course || []).filter(t => has(t, all()));
+  const rows = [[{ v: '全部', a: state.course === '全部', act: 'course' }]
+    .concat(courses.map(t => ({ v: t, a: state.course === t, act: 'course' })))];
+  [['within', T('tagGroupWithin')], ['shared', T('tagGroupShared')]].forEach(([gid]) => {
+    const tags = (tagSchema.groups[gid] || []).filter(t => has(t, pool));
+    if (tags.length) rows.push(tags.map(t => ({ v: t, a: state.tag === t, act: 'tag' })));
+  });
+  return rows.map(row => `<div class="tagrow">${row.map(c => `<button class="tagbtn ${c.a ? 'active' : ''}" data-action="${c.act}" data-val="${esc(c.v)}">${esc(c.v)}</button>`).join('')}</div>`).join('');
+}
+/* 选中项可能滚出视野，重绘后把它拉回行内可见位置。 */
+function revealActiveTag() {
+  $$('.tagrow').forEach(row => {
+    const a = $('.tagbtn.active', row);
+    if (!a) return;
+    // offsetLeft 都相对同一个 offsetParent，差值不受页面滚动影响
+    const left = a.offsetLeft - row.offsetLeft;
+    const right = left + a.offsetWidth;
+    if (left - row.scrollLeft < 8 || right - row.scrollLeft > row.clientWidth - 8) {
+      row.scrollLeft = Math.max(0, left - 12);
+    }
+  });
 }
 function libraryResults(list) {
   return `<div class="sectionbar"><strong>${esc(T('sectionTitle'))}</strong><small>${esc(T('found',{n:list.length}))}</small></div>${list.length ? `<div class="items">${list.map(card).join('')}</div>` : `<div class="empty">${icon('search',28)}<h3>${esc(T('emptyTitle'))}</h3>${esc(T('emptyText'))}<p><button class="pillbtn" data-action="reset">${esc(T('clearFilter'))}</button></p></div>`}`;
@@ -193,7 +358,7 @@ function share() {
 function settings() {
   const dark = document.documentElement.dataset.theme === 'dark';
   const cached = all().filter(x => mediaOf(x.id).video || mediaOf(x.id).slides).length;
-  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="sub-open"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(T('subDefault'))}</strong><small>${esc(subModeName(state.subMode))}</small></div><button class="head-btn right" data-action="sub-open" aria-label="${esc(T('subTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:String(ENV.version || VERSION).replace(/-debug$/,'')}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
+  return `${brandHeader()}<main class="content screen"><h1 class="sectiontitle">${esc(T('settingsTitle'))}</h1><div class="settings"><div class="setting" data-action="tab" data-val="offline"><span class="lefticon">${icon('download',22)}</span><div><strong>${esc(T('offlineMgmt'))}</strong><small>${esc(T('offlineMgmtSub'))} · ${cached}</small></div><button class="head-btn right" data-action="tab" data-val="offline" aria-label="${esc(T('open'))}">${icon('chevron',19)}</button></div><div class="setting"><span class="lefticon">${icon('folder',22)}</span><div><strong>${esc(T('importRow'))}</strong><small>${esc(T('importRowSub'))}</small></div><button class="head-btn right" data-action="import" aria-label="${esc(T('importRow'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="tag-manage"><span class="lefticon">${icon('flag',22)}</span><div><strong>${esc(T('tagManage'))}</strong><small>${esc(T('tagManageSub',{n:allTagsInData().length}))}</small></div><button class="head-btn right" data-action="tag-manage" aria-label="${esc(T('tagManage'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="theme-open"><span class="lefticon">${icon(dark ? 'moon' : 'sun',22)}</span><div><strong>${esc(T('darkMode'))}</strong><small>${esc(T('darkModeSub'))}</small></div><button class="mini-toggle ${dark ? 'on' : ''} right" data-action="theme-toggle" role="switch" aria-checked="${dark}" aria-label="${esc(T('darkMode'))}"><span></span></button></div><div class="setting" data-action="language-open"><span class="lefticon">${icon('info',22)}</span><div><strong>${esc(T('language'))}</strong><small>${esc(T('languageSub',{name:languageName(state.language)}))}</small></div><button class="head-btn right" data-action="language-open" aria-label="${esc(T('languageTitle'))}">${icon('chevron',19)}</button></div><div class="setting" data-action="sub-open"><span class="lefticon">${icon('film',22)}</span><div><strong>${esc(T('subDefault'))}</strong><small>${esc(subModeName(state.subMode))}</small></div><button class="head-btn right" data-action="sub-open" aria-label="${esc(T('subTitle'))}">${icon('chevron',19)}</button></div></div><div class="note-box">${esc(T('version',{v:String(ENV.version || VERSION).replace(/-debug$/,'')}))}<br>${esc(T('installHint'))}</div><div style="text-align:center;color:var(--muted);font-size:14px;margin-top:22px">${esc(T('footer'))}</div></main>`;
 }
 
 function editbar() {
@@ -209,6 +374,7 @@ function render(keepScroll = true) {
   $('#app').innerHTML = body + editbar() + bottom();
   $('#app').classList.toggle('editing', state.edit && !state.detail && state.tab === 'home');
   updateUpdateBar();
+  if (!state.detail && state.tab === 'home') revealActiveTag();
   if (state.detail) {
     loadVideo(state.detail);
     window.scrollTo(0, 0);
@@ -1110,7 +1276,8 @@ async function applyImport(list, mode) {
   }
   state.items = await db.allItems();
   state.items.sort((a,b) => (a.order ?? 999) - (b.order ?? 999));
-  state.tab = 'home'; state.detail = null; state.lang = 'all'; state.tag = '全部'; state.q = '';
+  state.tab = 'home'; state.detail = null; state.lang = 'all'; state.course = '全部'; state.tag = '全部'; state.q = '';
+  loadTagSchema();
   render(); notice(T('importOk',{n:added + updated}));
   if (added + updated) notice(T('importSummary',{a:added,b:updated,c:skipped}));
 }
@@ -1350,6 +1517,7 @@ async function boot() {
     state.items = SEED.slice();
     setTimeout(() => notice(T('dbFail')), 500);
   }
+  loadTagSchema();
   render(false);
   if (isNative) {
     platform.setOrientation('auto').catch(() => {});
@@ -1473,8 +1641,20 @@ function handleClick(e) {
   else if (a === 'set-theme') setTheme(val);
   else if (a === 'set-language') setLanguage(val);
   else if (a === 'language') { state.lang = val; render(); }
-  else if (a === 'tag') { state.tag = val; render(); }
-  else if (a === 'reset') { state.lang = 'all'; state.tag = '全部'; state.q = ''; render(); }
+  else if (a === 'course') {
+    state.tag = '全部';
+    state.course = (val === '全部' || state.course === val) ? '全部' : val;
+    render();
+  }
+  else if (a === 'tag') { state.tag = state.tag === val ? '全部' : val; render(); }
+  else if (a === 'tag-manage') openTagSheet();
+  else if (a === 'tag-edit') tagMenu(btn.dataset.g, val);
+  else if (a === 'tag-add') askTagName(btn.dataset.g, '', 'add');
+  else if (a === 'tag-name-save') commitTagName($('#tag-name') ? $('#tag-name').value : '');
+  else if (a === 'tag-move') moveTagMenu(btn.dataset.g, val);
+  else if (a === 'tag-move-to') moveTag(btn.dataset.from, btn.dataset.g, val);
+  else if (a === 'tag-delete') deleteTagFlow(btn.dataset.g, val);
+  else if (a === 'reset') { state.lang = 'all'; state.course = '全部'; state.tag = '全部'; state.q = ''; render(); }
   else if (a === 'open') openItem(id);
   else if (a === 'close-detail') backToList();
   else if (a === 'share-toggle') updateShare(id || state.detail);
